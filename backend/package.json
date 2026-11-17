@@ -4,7 +4,7 @@
   "description": "Casino Platform backend API (Node.js + Express + TypeScript)",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "nodemon --exec ts-node src/index.ts",
+    "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -12,7 +12,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
@@ -32,7 +32,8 @@
     "@types/pg": "^8.23.1",
     "nodemon": "^3.1.14",
     "ts-node": "^10.9.2",
-    "typescript": "^7.0.2"
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3"
   },
   "allowScripts": {
     "bcrypt@6.0.0": true

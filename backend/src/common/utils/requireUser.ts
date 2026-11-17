@@ -1,6 +1,6 @@
 import type { Request } from 'express';
 
-import { AppError } from './AppError';
+import { AppError } from './AppError.js';
 
 /**
  * Returns the authenticated user id set by `authGuard`.

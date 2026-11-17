@@ -1,7 +1,7 @@
 import type { PoolClient } from 'pg';
 
-import { query, withTransaction } from '../../config/db';
-import { AppError } from '../../common/utils/AppError';
+import { query, withTransaction } from '../../config/db.js';
+import { AppError } from '../../common/utils/AppError.js';
 
 /**
  * Wallet service — ledger-based money handling.

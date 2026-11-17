@@ -1,12 +1,12 @@
 import type { NextFunction, Request, Response } from 'express';
 
-import { AppError } from '../../common/utils/AppError';
-import { requireUserId } from '../../common/utils/requireUser';
+import { AppError } from '../../common/utils/AppError.js';
+import { requireUserId } from '../../common/utils/requireUser.js';
 import {
   createDepositRequest,
   createWithdrawRequest,
   listUserPayments,
-} from './payment.service';
+} from './payment.service.js';
 
 /**
  * Player payment endpoints. All sit behind `authGuard`; the owner comes from the

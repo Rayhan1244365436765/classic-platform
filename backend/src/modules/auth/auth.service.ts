@@ -1,10 +1,10 @@
 import bcrypt from 'bcrypt';
 import jwt, { type SignOptions } from 'jsonwebtoken';
 
-import { query } from '../../config/db';
-import { JWT_SECRET } from '../../config/env';
-import { AppError } from '../../common/utils/AppError';
-import type { LoginInput, RegisterInput } from './auth.schema';
+import { query } from '../../config/db.js';
+import { JWT_SECRET } from '../../config/env.js';
+import { AppError } from '../../common/utils/AppError.js';
+import type { LoginInput, RegisterInput } from './auth.schema.js';
 
 const SALT_ROUNDS = 10;
 const JWT_EXPIRES_IN: SignOptions['expiresIn'] = '7d';

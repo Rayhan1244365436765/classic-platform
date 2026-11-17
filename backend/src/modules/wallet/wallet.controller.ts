@@ -1,8 +1,8 @@
 import type { NextFunction, Request, Response } from 'express';
 
-import { AppError } from '../../common/utils/AppError';
-import { requireUserId } from '../../common/utils/requireUser';
-import { deposit as depositFunds, getBalance, withdraw as withdrawFunds } from './wallet.service';
+import { AppError } from '../../common/utils/AppError.js';
+import { requireUserId } from '../../common/utils/requireUser.js';
+import { deposit as depositFunds, getBalance, withdraw as withdrawFunds } from './wallet.service.js';
 
 /**
  * Wallet HTTP handlers.

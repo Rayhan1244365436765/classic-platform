@@ -3,9 +3,9 @@
 A full-stack online casino MVP in a single monorepo: a TypeScript REST API, a player web app, an
 operator (admin) dashboard and a Flutter Android app.
 
-The MVP ships with JWT authentication, an **append-only wallet ledger**, a **provably-fair roulette**
-implementation, and **manual deposits/withdrawals** reviewed by an operator — the bridge until a real
-payment gateway (bKash, Stripe, …) is integrated.
+The MVP ships with JWT authentication, an **append-only wallet ledger**, a **provably-fair "Spin to
+Win" lucky wheel** (20 segments, 70% RTP), and **manual deposits/withdrawals** reviewed by an
+operator — the bridge until a real payment gateway (bKash, Stripe, …) is integrated.
 
 > **Status:** feature-complete MVP. `backend`, `web`, `admin` build and lint cleanly; the Flutter app
 > is written but was never compiled in the environment where the repo was produced (no Flutter SDK) —
@@ -27,7 +27,7 @@ payment gateway (bKash, Stripe, …) is integrated.
 ## Project Overview
 
 A player registers with a phone number and password, receives a wallet, tops it up through a manual
-deposit request, plays European roulette, and cashes out through a withdrawal request. Every money
+deposit request, spins the multiplier wheel, and cashes out through a withdrawal request. Every money
 movement is a row in a ledger — balances are never stored or mutated directly:
 
 ```
@@ -38,11 +38,26 @@ balance(user) = Σ transactions.amount  WHERE status = 'completed'
 | --- | --- | --- |
 | Phone + password auth | `backend/src/modules/auth` | bcrypt (cost 10) + JWT (`{ id, role }`, 7 days) |
 | Wallet ledger | `backend/src/modules/wallet` | `deposit`, `withdraw`, balance = sum of ledger rows |
-| Roulette | `backend/src/modules/game/roulette` | atomic bet → payout → round row, HMAC-SHA256 |
-| Provably fair RNG | `backend/src/common/provably-fair` | server-seed commit, deterministic result 0–36 |
+| Spin to Win wheel | `backend/src/modules/game/roulette` | 20 segments (0×–10×), atomic stake → payout → round row |
+| Lucky Slots | `backend/src/modules/game/slots` | 3×3 grid, 3 paylines at 8.4× each, atomic stake → payout → round row |
+| Dice (High/Low) | `backend/src/modules/game/dice` | roll 1–100, 1.95× on a win, 50 loses |
+| Mines | `backend/src/modules/game/mines` | 5×5 board, hidden layout, 3% edge, own `mines_games` table |
+| Plinko | `backend/src/modules/game/plinko` | 8-row peg board, 9 slots, 97% RTP (3% edge) |
+| Keno | `backend/src/modules/game/keno` | 20 of 80 drawn, 1–10 picks, per-count ladders at ~97% RTP (3% edge) |
+| Baccarat | `backend/src/modules/game/baccarat` | single deck, full third-card tableau, tie pushes Player/Banker |
+| Dragon Tiger | `backend/src/modules/game/dragontiger` | 8-deck shoe, one card each, tie loses the side bets |
+| Teen Patti | `backend/src/modules/game/teenpatti` | 3 cards each, full 6-category ranking, 5% rake on wins |
+| Showdown (cascade) | `backend/src/modules/game/cascade` | 5×4 cluster-pays slot, Wild West emoji set, tumble ×1→×16, 95.72% RTP |
+| Classic Roulette | `backend/src/modules/game/classic_roulette` | 37 pockets (0–36), 0 green, straight 36×, outside 2×, 97.30% RTP on every bet |
+| Fruit Bonanza | `backend/src/modules/game/fruit_bonanza` | 3×3 fruit reels, 5 paylines, 3-of-a-kind 4× / 2-of-a-kind 0.2×, 97.22% RTP |
+| 3D Dice | `backend/src/modules/game/dice3d` | three dice, high/low 2× (a triple loses), totals 7.8×–210×, 97.22% RTP |
+| Boxing King | `backend/src/modules/game/boxing_king` | 3×3 cluster pays, 3-4 / 5-6 / 7+ → 2× / 8.5× / 30×, 97.42% RTP |
+| Blackjack | `backend/src/modules/game/blackjack` | single-deck 21, hit/stand, own `blackjack_games` table |
+| Aviator | `backend/src/modules/game/aviator` | crash game: hidden crash point, server-timed cash-out |
+| Provably fair RNG | `backend/src/common/provably-fair` | server-seed commit, HMAC-SHA256 index in `[0, 20)` |
 | Manual payments | `backend/src/modules/payment` | deposit/withdraw requests awaiting approval |
 | Admin reporting & approval | `backend/src/modules/admin` | stats, users, transactions, payment queue |
-| Player web app | `web/` | login, register, dashboard, cashier, playable roulette |
+| Player web app | `web/` | login, register, lobby, cashier, wheel + slots + dice + aviator |
 | Admin dashboard | `admin/` | admin-only login, stats cards, review tables/queue |
 | Android app | `mobile/` | login, register, lobby, roulette, cashier dialogs |
 
@@ -272,14 +287,15 @@ casino-platform/
 │   ├── migrations/           # 001_initial_schema.sql, 002_payment_requests.sql
 │   ├── src/
 │   │   ├── config/           # db.ts (pool, query, withTransaction), env.ts
-│   │   ├── modules/          # auth, wallet, game/roulette, payment, admin
+│   │   ├── modules/          # auth, wallet, game/roulette, game/slots, game/dice, game/aviator, payment, admin
 │   │   ├── common/           # middleware (authGuard, adminGuard, errorHandler),
 │   │   │                     # utils (AppError, requireUserId), provably-fair (HMAC-SHA256)
 │   │   └── index.ts          # Express app: /health + /api/*
 │   ├── Dockerfile
 │   └── .env.example
 ├── web/                      # React 19 + Vite player app (:5173)
-│   └── src/                  # api/, context/, components/, pages/
+│   └── src/                  # api/, context/, components/ (Modal, WinModal, Icons, SoundToggle,
+│                             #   LivePlayerBadge, ProtectedRoute), utils/, pages/ (Login, Lobby, …)
 ├── admin/                    # React 19 + Vite operator dashboard (:5174)
 │   └── src/                  # api/, components/, pages/ (Login, Dashboard)
 ├── mobile/                   # Flutter Android app (com.casinoplatform.casino_mobile)
@@ -308,7 +324,44 @@ All responses are JSON; errors are always `{ "error": { "code", "message" } }`.
 | `GET` | `/api/payment/mine` | Bearer | own payment requests |
 | `POST` | `/api/payment/deposit` | Bearer | file a deposit request |
 | `POST` | `/api/payment/withdraw` | Bearer | file a withdrawal request (debited immediately) |
-| `POST` | `/api/game/roulette/play` | Bearer | play a round |
+| `GET` | `/api/game/roulette/segments` | Bearer | wheel layout, per-multiplier odds, RTP |
+| `POST` | `/api/game/roulette/play` | Bearer | spin the wheel (`{ betAmount }`) |
+| `GET` | `/api/game/slots/config` | Bearer | slot symbols + paytable |
+| `POST` | `/api/game/slots/play` | Bearer | spin the reels (`{ betAmount }`) |
+| `GET` | `/api/game/dice/config` | Bearer | dice payout + winning ranges |
+| `POST` | `/api/game/dice/play` | Bearer | roll high/low (`{ betAmount, prediction }`) |
+| `POST` | `/api/game/aviator/start` | Bearer | open a crash round (`{ betAmount }`) |
+| `POST` | `/api/game/aviator/cashout` | Bearer | cash out (`{ roundId, multiplier }`) |
+| `POST` | `/api/game/aviator/crash` | Bearer | forfeit a flying round (`{ roundId }`) |
+| `GET` | `/api/game/mines/current` | Bearer | the board to resume, if any |
+| `GET` | `/api/game/mines/table?mines=3` | Bearer | pay table (multiplier per gem) |
+| `POST` | `/api/game/mines/start` | Bearer | open a board (`{ betAmount, minesCount }`) |
+| `POST` | `/api/game/mines/reveal` | Bearer | open a tile (`{ gameId, tileIndex }`) |
+| `POST` | `/api/game/mines/cashout` | Bearer | cash out (`{ gameId }`) |
+| `GET` | `/api/game/plinko/config` | Bearer | board size + pay table |
+| `POST` | `/api/game/plinko/play` | Bearer | drop a ball (`{ betAmount, rows }`) |
+| `GET` | `/api/game/keno/config` | Bearer | board size + all 10 pay ladders |
+| `POST` | `/api/game/keno/play` | Bearer | draw 20 of 80 (`{ betAmount, selectedNumbers }`) |
+| `GET` | `/api/game/baccarat/config` | Bearer | payouts, rules + exact odds |
+| `POST` | `/api/game/baccarat/play` | Bearer | deal a hand (`{ betAmount, betOn }`) |
+| `GET` | `/api/game/dragontiger/config` | Bearer | shoe size, payouts + exact odds |
+| `POST` | `/api/game/dragontiger/play` | Bearer | one card each (`{ betAmount, betOn }`) |
+| `GET` | `/api/game/teenpatti/config` | Bearer | ranking, payouts + exact odds |
+| `POST` | `/api/game/teenpatti/play` | Bearer | 3 cards each (`{ betAmount }`) |
+| `GET` | `/api/game/cascade/config` | Bearer | symbols, multipliers + pay table |
+| `POST` | `/api/game/cascade/play` | Bearer | spin the tumble grid (`{ betAmount }`) |
+| `GET` | `/api/game/classic_roulette/config` | Bearer | pockets, colours, wheel order, payouts + exact odds |
+| `POST` | `/api/game/classic_roulette/play` | Bearer | one spin (`{ betAmount, betType, betValue? }`) |
+| `GET` | `/api/game/fruit_bonanza/config` | Bearer | symbols, paylines, paytable + exact odds |
+| `POST` | `/api/game/fruit_bonanza/play` | Bearer | spin the 3×3 reels (`{ betAmount }`) |
+| `GET` | `/api/game/dice3d/config` | Bearer | paytable, combos + exact odds |
+| `POST` | `/api/game/dice3d/play` | Bearer | roll three dice (`{ betAmount, betType }`) |
+| `GET` | `/api/game/boxing_king/config` | Bearer | symbols, cluster paytable + measured odds |
+| `POST` | `/api/game/boxing_king/play` | Bearer | spin the 3×3 board (`{ betAmount }`) |
+| `GET` | `/api/game/blackjack/current` | Bearer | the hand to resume, if any |
+| `POST` | `/api/game/blackjack/start` | Bearer | deal a hand (`{ betAmount }`) |
+| `POST` | `/api/game/blackjack/hit` | Bearer | take a card (`{ gameId }`) |
+| `POST` | `/api/game/blackjack/stand` | Bearer | stand and let the dealer play (`{ gameId }`) |
 | `GET` | `/api/admin/stats` | Bearer + admin | users / wagered / payouts |
 | `GET` | `/api/admin/users` | Bearer + admin | users with balances |
 | `GET` | `/api/admin/transactions` | Bearer + admin | latest 100 ledger rows |

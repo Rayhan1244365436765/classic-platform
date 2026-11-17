@@ -13,21 +13,53 @@ import crypto from 'node:crypto';
 /** Highest value an 8-hex-char slice can hold (0xffffffff). */
 const UINT32_MAX = 0xffffffff;
 
+/** Number of distinct 8-hex-char values (2³²) — used to map to `[0, 1)`. */
+const UINT32_RANGE = 2 ** 32;
+
 /** European roulette pockets: 0–36. */
 export const ROULETTE_POCKETS = 37;
 
 /**
- * Deterministically derive a roulette pocket (0–36) from the seed material.
+ * Deterministically derive an integer in `[0, slots)` from the seed material.
  *
  * HMAC-SHA256(key = serverSeed, msg = `${clientSeed}:${nonce}`) → first 8 hex
- * chars → integer → divide by 0xFFFFFFFF → [0, 1] → × 37 → floor.
+ * chars → integer → divide by 0xFFFFFFFF → [0, 1] → × slots → floor.
  *
  * The divisor is the inclusive maximum, so a digest starting with `ffffffff`
- * produces exactly 1.0 and would floor to 37 (a pocket that does not exist).
- * That 1-in-4-billion case is clamped to 36 — results stay in range without
- * changing the distribution anyone can verify.
+ * produces exactly 1.0 and would floor to `slots` (out of range). That
+ * 1-in-4-billion case is clamped to `slots - 1`.
  */
-export function generateProvablyFairResult(
+export function generateProvablyFairIndex(
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number,
+  slots: number,
+): number {
+  if (!Number.isInteger(slots) || slots < 2) {
+    throw new Error('slots must be an integer >= 2');
+  }
+
+  const digest = crypto
+    .createHmac('sha256', serverSeed)
+    .update(`${clientSeed}:${nonce}`)
+    .digest('hex');
+
+  const slice = digest.slice(0, 8);
+  const value = Number.parseInt(slice, 16);
+  const fraction = value / UINT32_MAX;
+  const roll = Math.floor(fraction * slots);
+
+  return Math.min(roll, slots - 1);
+}
+
+/**
+ * Deterministically derive a float in `[0, 1)` from the seed material.
+ *
+ * Same digest as `generateProvablyFairIndex`: the first 8 hex chars are a
+ * uint32, divided by 2³². Used by games that need a continuous random value
+ * (e.g. the Aviator crash curve) rather than a discrete index.
+ */
+export function generateProvablyFairFloat(
   serverSeed: string,
   clientSeed: string,
   nonce: number,
@@ -37,12 +69,20 @@ export function generateProvablyFairResult(
     .update(`${clientSeed}:${nonce}`)
     .digest('hex');
 
-  const slice = digest.slice(0, 8);
-  const value = Number.parseInt(slice, 16);
-  const fraction = value / UINT32_MAX;
-  const roll = Math.floor(fraction * ROULETTE_POCKETS);
+  const value = Number.parseInt(digest.slice(0, 8), 16);
 
-  return Math.min(roll, ROULETTE_POCKETS - 1);
+  return value / UINT32_RANGE;
+}
+
+/**
+ * European roulette pocket (0–36) — kept for the legacy wheel contract.
+ */
+export function generateProvablyFairResult(
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number,
+): number {
+  return generateProvablyFairIndex(serverSeed, clientSeed, nonce, ROULETTE_POCKETS);
 }
 
 /** Random 32-byte seed, hex encoded (64 characters). Never reveal before settlement. */

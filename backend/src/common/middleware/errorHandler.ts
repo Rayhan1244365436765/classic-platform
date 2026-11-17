@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
 
-import { AppError } from '../utils/AppError';
+import { AppError } from '../utils/AppError.js';
 
 /**
  * Global error handler — must be registered last, after all routes.

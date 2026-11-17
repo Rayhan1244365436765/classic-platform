@@ -20,7 +20,7 @@ this file explains the *why* behind each table.
 
 ```
 users (1) ──< (N) transactions      # every money movement belongs to one user
-users (1) ──< (N) game_rounds       # every roulette round belongs to one user
+users (1) ──< (N) game_rounds       # every wheel spin belongs to one user
 
 game_rounds.id ─ ─ ─ transactions.reference_id   # soft link (VARCHAR), not a foreign key
 ```
@@ -117,7 +117,7 @@ WHERE user_id = $1
 ```
 
 The same calculation is exposed as the `account_balances` view (section 4). A typical settled
-roulette round therefore writes **two** rows, both referencing the same round:
+wheel spin therefore writes **two** rows, both referencing the same round:
 
 | type | amount | reference_id |
 | --- | --- | --- |
@@ -141,10 +141,10 @@ roulette round therefore writes **two** rows, both referencing the same round:
 
 ---
 
-## 3. `game_rounds` (Roulette)
+## 3. `game_rounds` (wheel + slots)
 
-One row per roulette round. The round stores *what was bet*, *what came out*, and the
-provably-fair commitment for that spin.
+One row per round. The round stores *what was staked*, *what came out*, and the provably-fair
+commitment for that spin.
 
 ```sql
 CREATE TABLE game_rounds (
@@ -152,9 +152,14 @@ CREATE TABLE game_rounds (
     user_id          UUID          NOT NULL,
     bet_amount       NUMERIC(18,2) NOT NULL,
     bet_type         VARCHAR(20)   NOT NULL,
-    bet_value        VARCHAR(10),
-    result           VARCHAR(10),
+    bet_value        VARCHAR(64),          -- widened by 011_keno.sql (keno picks)
+    result           VARCHAR(64),           -- widened by 005_slots_3x3.sql
     payout           NUMERIC(18,2) NOT NULL DEFAULT 0,
+    multiplier       NUMERIC(6,2),           -- added by 003_spin_wheel.sql
+    crash_point      NUMERIC(10,2),          -- added by 007_aviator.sql
+    started_at       TIMESTAMPTZ,            -- added by 007_aviator.sql
+    settled_at       TIMESTAMPTZ,            -- added by 007_aviator.sql
+    status           VARCHAR(12)   NOT NULL DEFAULT 'settled',  -- 007_aviator.sql
     server_seed_hash VARCHAR(64)   NOT NULL,
     created_at       TIMESTAMPTZ   NOT NULL DEFAULT now(),
 
@@ -163,7 +168,9 @@ CREATE TABLE game_rounds (
     CONSTRAINT game_rounds_bet_amount_check
         CHECK (bet_amount > 0),
     CONSTRAINT game_rounds_bet_type_check
-        CHECK (bet_type IN ('red', 'black', 'green', 'even', 'odd', 'low', 'high', 'number')),
+        CHECK (bet_type IN ('red', 'black', 'green', 'even', 'odd', 'low', 'high', 'number', 'spin', 'slots', 'dice', 'aviator', 'plinko', 'keno', 'baccarat', 'dragontiger', 'teenpatti', 'cascade', 'classic_roulette', 'fruit_bonanza', 'dice3d', 'boxing_king')),
+    CONSTRAINT game_rounds_status_check
+        CHECK (status IN ('pending', 'cashed_out', 'crashed', 'settled')),
     CONSTRAINT game_rounds_payout_check
         CHECK (payout >= 0),
     CONSTRAINT game_rounds_server_seed_hash_check
@@ -178,16 +185,86 @@ CREATE INDEX idx_game_rounds_user_created ON game_rounds (user_id, created_at DE
 | `id` | `UUID` | Primary key. Also used as `transactions.reference_id` for the round's bet/win rows. |
 | `user_id` | `UUID` | FK → `users.id`, `ON DELETE CASCADE`. |
 | `bet_amount` | `NUMERIC(18,2)` | Stake placed, always > 0 (the debit is the matching `bet` transaction). |
-| `bet_type` | `VARCHAR(20)` | `'red'`, `'black'`, `'green'`, `'even'`, `'odd'`, `'low'`, `'high'`, `'number'`. |
-| `bet_value` | `VARCHAR(10)` | Bet parameter for `'number'` bets (`'0'`–`'36'`); `NULL` for outside bets. |
-| `result` | `VARCHAR(10)` | Winning pocket (`'7'`) or colour (`'red'`). `NULL` until the round is settled. |
-| `payout` | `NUMERIC(18,2)` | Amount credited back to the player (stake included). `0` on a loss. |
+| `bet_type` | `VARCHAR(20)` | `'spin'` (wheel), `'slots'`, `'dice'`, `'aviator'`, `'plinko'`, `'keno'`, `'baccarat'`, `'dragontiger'`, `'teenpatti'`, `'cascade'`, `'classic_roulette'`, `'fruit_bonanza'`, `'dice3d'` or `'boxing_king'`. The original values (`'red'`…`'number'`) are retained for historical rows from the first roulette table. Added by `020_boxing_king.sql`. |
+| `bet_value` | `VARCHAR(64)` | The call for `'dice'` (`'high'`/`'low'`), the player's picks for `'keno'` (`'3,17,42'`), the side for `'baccarat'` / `'dragontiger'` (`'player'`/`'banker'`/`'tie'`, `'dragon'`/`'tiger'`/`'tie'`), the row count for `'plinko'`, the backed bet for `'classic_roulette'` (`'number:17'`, `'red'`, `'odd'`, …), the call for `'dice3d'` (`'high'`, `'low'`, `'15'`); `NULL` for `'teenpatti'`, `'cascade'`, `'fruit_bonanza'`, `'boxing_king'` and where the player picks no target. Widened from 10 by `011_keno.sql`. |
+| `result` | `VARCHAR(64)` | What landed: the wheel multiplier as text (`'0'`, `'0.5'`, `'10'`), the row-major slot grid (9 cells), the dice roll (`'73'`), the Aviator crash point (`'3.47'`) once settled, the 20 drawn keno numbers (`'4,8,9,…'`), the baccarat winner plus both hands (`'banker\|P:AS,5H\|B:KH,2C,7S'`), the dragon tiger winner plus both cards (`'dragon\|D:KS\|T:9H'`), the teen patti winner, both categories and both hands (`'player\|pair/high\|P:AS,AH,KD\|D:7C,9H,KS'`), the cascade summary (`'3c\|4x\|2.41x'`), the roulette pocket plus its colour (`'17\|black'`, `'0\|green'`), the nine fruit symbols row-major (`'🍉🍇🍋🍒🍊⭐🍉🍇🍋'`), the three dice plus their total (`'4,2,3\|9'`), or the nine boxing symbols row-major (`'🥊🥊🥊🏆🤴💪💥🩳🏆'`). |
+| `crash_point` | `NUMERIC(10,2)` | **Aviator only**: the hidden burst multiplier. Written at `start`, revealed to the client only after the round settles. |
+| `started_at` | `TIMESTAMPTZ` | **Aviator only**: server clock at round open. Cash-out validity is `now() − started_at`, so the client cannot influence it. |
+| `settled_at` | `TIMESTAMPTZ` | **Aviator only**: when the round was cashed out or burst. |
+| `status` | `VARCHAR(12)` | `'pending'` (flying) → `'cashed_out'` / `'crashed'`; `'settled'` for the instant games (the default). |
+
+---
+
+## 3b. `mines_games` (migration `008_mines.sql`)
+
+One row per Mines board. Mines is turn-based, so it keeps its own state instead of the
+instant-round `game_rounds` table.
+
+```sql
+CREATE TABLE mines_games (
+    id               UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id          UUID          NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    bet_amount       NUMERIC(18,2) NOT NULL CHECK (bet_amount > 0),
+    mines_count      SMALLINT      NOT NULL CHECK (mines_count BETWEEN 1 AND 24),
+    grid_state       JSONB         NOT NULL,                       -- 25 booleans, true = mine
+    revealed_tiles   JSONB         NOT NULL DEFAULT '[]'::jsonb,   -- indices of opened gems
+    status           VARCHAR(10)   NOT NULL DEFAULT 'active',      -- active | won | lost
+    multiplier       NUMERIC(14,2) NOT NULL DEFAULT 1,
+    payout           NUMERIC(18,2) NOT NULL DEFAULT 0,
+    server_seed_hash VARCHAR(64)   NOT NULL,
+    created_at       TIMESTAMPTZ   NOT NULL DEFAULT now(),
+    settled_at       TIMESTAMPTZ
+);
+```
+
+| Column | Notes |
+| --- | --- |
+| `grid_state` | The hidden layout. **Never serialised to a client** until the game settles. |
+| `revealed_tiles` | Indices the player opened (used to recompute the multiplier server-side). |
+| `status` | `active` → `won` (cash-out or board cleared) / `lost` (hit a mine). |
+| `multiplier` / `payout` | Locked in at settle: `payout = bet_amount × multiplier`. |
+| `revealed_tiles` + `multiplier` | `GET /game/mines/current` returns these so a reloaded page can resume. |
+
+The ledger still records every movement: `bet` (negative) at `start` and `win` (positive) at
+`cashout`, both referencing `mines_games.id` as `reference_id`.
+
+---
+
+## 3c. `blackjack_games` (migration `010_blackjack.sql`)
+
+One row per hand. Also turn-based, so it owns its state (and its shuffled shoe).
+
+```sql
+CREATE TABLE blackjack_games (
+    id               UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id          UUID          NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    bet_amount       NUMERIC(18,2) NOT NULL CHECK (bet_amount > 0),
+    player_hand      JSONB         NOT NULL DEFAULT '[]'::jsonb,  -- e.g. ["AS","TH"]
+    dealer_hand      JSONB         NOT NULL DEFAULT '[]'::jsonb,  -- 2 cards; [1] is the hole card
+    deck             JSONB         NOT NULL,                      -- remaining cards of the shoe
+    status           VARCHAR(10)   NOT NULL DEFAULT 'active',      -- active | won | lost | push
+    payout           NUMERIC(18,2) NOT NULL DEFAULT 0,
+    server_seed_hash VARCHAR(64)   NOT NULL,
+    created_at       TIMESTAMPTZ   NOT NULL DEFAULT now(),
+    settled_at       TIMESTAMPTZ
+);
+```
+
+| Column | Notes |
+| --- | --- |
+| `dealer_hand` | Stored complete, but the API returns **only index 0** while `status = 'active'`. |
+| `deck` | The committed, shuffled shoe. Never serialised to a client. |
+| `payout` | `2 × bet` on a win, `bet` on a push, `0` on a loss. |
+| Resume | `GET /game/blackjack/current` returns your hand + the up-card; HIT/STAND continue the row. |
+| `multiplier` | `NUMERIC(6,2)` | The payout multiplier used (`0`, `2`, `10`, …); `payout = bet_amount × multiplier`. `NULL` on legacy roulette rows. |
+| `payout` | `NUMERIC(18,2)` | Amount credited back to the player (stake included). `0` on a 0× spin. |
 | `server_seed_hash` | `VARCHAR(64)` | Hex SHA-256 commitment of the server seed, published before the spin. |
 | `created_at` | `TIMESTAMPTZ` | Round time. |
 
-**Why `result` is nullable:** the row is inserted when the bet is accepted (hash already known),
-then completed with `result`/`payout` when the spin settles. This gives a crash-safe audit trail of
-in-flight rounds, and lets a reconciliation job find stuck rounds:
+**Why `result` is nullable:** the schema still allows a round to be opened before it settles (the
+hash is known at accept time), which keeps the crash-safe audit trail from the original design. The
+current wheel settles in a single transaction, so a row is written complete and `result` is
+practically never `NULL`.
 
 ```sql
 SELECT id FROM game_rounds WHERE result IS NULL AND created_at < now() - interval '5 minutes';

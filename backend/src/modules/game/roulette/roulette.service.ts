@@ -4,100 +4,131 @@ import type { PoolClient } from 'pg';
 
 import {
   generateClientSeed,
-  generateProvablyFairResult,
+  generateProvablyFairIndex,
   generateServerSeed,
   hashServerSeed,
-} from '../../../common/provably-fair';
-import { AppError } from '../../../common/utils/AppError';
-import { withTransaction } from '../../../config/db';
-import { createTransaction, getBalance, lockUser } from '../../wallet/wallet.service';
+} from '../../../common/provably-fair/index.js';
+import { AppError } from '../../../common/utils/AppError.js';
+import { withTransaction } from '../../../config/db.js';
+import { createTransaction, getBalance, lockUser } from '../../wallet/wallet.service.js';
 
 /**
- * Roulette engine (European wheel, 0–36).
+ * "Spin to Win" lucky wheel.
  *
- * A round is atomic: the stake debit, the optional payout credit, and the
- * `game_rounds` row are written inside a single DB transaction. If anything
- * fails, the ledger and the round history stay consistent (all rolled back).
+ * 20 segments; the multiplier is the only bet decision, so the house edge is a
+ * property of this table, not of the player's choice:
+ *
+ *   RTP = Σ(segment multipliers) / segment count = 14 / 20 = 0.70
+ *   House edge = 30%
+ *
+ * Payout rules:
+ *   * 0x   → the whole stake is lost.
+ *   * > 0x → the player is credited `stake × multiplier` (0.5x returns half the
+ *            stake, 1x returns the stake, 10x pays ten times the stake).
+ *
+ * Every spin is atomic: debit the stake, credit the payout, write the round row.
  */
 
-export const BET_TYPES = ['red', 'black', 'green', 'number'] as const;
-export type BetType = (typeof BET_TYPES)[number];
-export type RouletteColor = 'green' | 'red' | 'black';
+/** Keep this in sync with the wheel drawn by the clients. */
+export const WHEEL_SEGMENTS: readonly number[] = [
+  10, 0, 0.5, 0, 0, 2, 0, 0, 0.5, 0,
+  0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0,
+];
 
-export type RouletteResult = {
-  resultNumber: number;
-  resultColor: RouletteColor;
+export const SEGMENT_COUNT = WHEEL_SEGMENTS.length;
+
+export type SegmentColor = 'gold' | 'green' | 'blue' | 'gray';
+
+export type SpinResult = {
+  /** Index of the segment the wheel stopped on (0-based). */
+  segmentIndex: number;
+  multiplier: number;
+  segmentColor: SegmentColor;
   won: boolean;
+  /** Multiplier × stake, already rounded to 2 decimals. */
   payout: number;
-  serverSeedHash: string;
-  /** Extras that make the response self-explanatory for clients / admin. */
-  roundId: string;
   betAmount: number;
-  betType: BetType;
-  betValue: string | null;
   balanceAfter: number;
+  serverSeedHash: string;
+  roundId: string;
+  /**
+   * Legacy aliases kept so older clients keep rendering:
+   * `resultNumber` is the segment index, `resultColor` the colour key.
+   */
+  resultNumber: number;
+  resultColor: string;
 };
 
-/** Stake multipliers: number 36:1, outside colours 2:1, single green pocket 14:1. */
-const PAYOUT_MULTIPLIERS: Record<BetType, number> = {
-  number: 36,
-  red: 2,
-  black: 2,
-  green: 14,
-};
+/** Colour language used by both web and mobile clients. */
+export function segmentColor(multiplier: number): SegmentColor {
+  if (multiplier >= 10) {
+    return 'gold';
+  }
+  if (multiplier >= 2) {
+    return 'green';
+  }
+  if (multiplier > 0) {
+    return 'blue';
+  }
+  return 'gray';
+}
+
+/** Theoretical return-to-player for this wheel (0.70 = 70%). */
+export function wheelRtp(): number {
+  const total = WHEEL_SEGMENTS.reduce((sum, value) => sum + value, 0);
+  return total / SEGMENT_COUNT;
+}
+
+/** Wheel layout + odds, exposed so clients never hard-code a different table. */
+export function wheelConfig(): {
+  segments: readonly number[];
+  segmentCount: number;
+  rtp: number;
+  payouts: Array<{ multiplier: number; color: SegmentColor; chance: number }>;
+} {
+  const counts = new Map<number, number>();
+  for (const segment of WHEEL_SEGMENTS) {
+    counts.set(segment, (counts.get(segment) ?? 0) + 1);
+  }
+
+  const payouts = [...counts.entries()]
+    .sort((a, b) => b[0] - a[0])
+    .map(([multiplier, count]) => ({
+      multiplier,
+      color: segmentColor(multiplier),
+      chance: count / SEGMENT_COUNT,
+    }));
+
+  return {
+    segments: WHEEL_SEGMENTS,
+    segmentCount: SEGMENT_COUNT,
+    rtp: wheelRtp(),
+    payouts,
+  };
+}
 
 /** Fixed per-round nonce for the MVP; becomes per-client once seed history exists. */
 const NONCE = 1;
-
-/**
- * Colour of a pocket.
- *
- * Ranges as specified for this product: 0 green; 1–10 and 19–28 red;
- * 11–18 and 29–36 black. (This is not the classic alternating European layout —
- * change this one function if the wheel mapping is ever revised.)
- */
-export function getRouletteColor(resultNumber: number): RouletteColor {
-  if (resultNumber === 0) {
-    return 'green';
-  }
-
-  const isRed = (resultNumber >= 1 && resultNumber <= 10) || (resultNumber >= 19 && resultNumber <= 28);
-  return isRed ? 'red' : 'black';
-}
-
-/**
- * Play one roulette round.
- *
- * @param userId   owner of the wallet (from the verified JWT)
- * @param betAmount stake, positive number (2 dp)
- * @param betType  red | black | green | number
- * @param betValue pocket for `number` bets ('0'–'36'); ignored otherwise
- */
-export async function playRoulette(
-  userId: string,
-  betAmount: number,
-  betType: BetType,
-  betValue?: string | number | null,
-): Promise<RouletteResult> {
+/** Spin the wheel once. */
+export async function playSpin(userId: string, betAmount: number): Promise<SpinResult> {
   const stake = assertBetAmount(betAmount);
-  const type = assertBetType(betType);
-  const value = type === 'number' ? assertNumberBet(betValue) : null;
 
-  // 1. Commit + spin — pure computation, no DB writes yet.
+  // 1. Commit + spin (pure computation, no DB writes yet).
   const serverSeed = generateServerSeed();
   const clientSeed = generateClientSeed();
   const serverSeedHash = hashServerSeed(serverSeed);
-  const resultNumber = generateProvablyFairResult(serverSeed, clientSeed, NONCE);
-  const resultColor = getRouletteColor(resultNumber);
-
-  // 2. Settle the bet.
-  const won = didWin(type, value, resultNumber, resultColor);
-  const payout = won ? roundMoney(stake * PAYOUT_MULTIPLIERS[type]) : 0;
-
-  // Ledger rows reference the round, so the id exists before the first insert.
+  const segmentIndex = generateProvablyFairIndex(
+    serverSeed,
+    clientSeed,
+    NONCE,
+    SEGMENT_COUNT,
+  );
+  const multiplier = WHEEL_SEGMENTS[segmentIndex] ?? 0;
+  const payout = roundMoney(stake * multiplier);
+  const won = multiplier > 0;
   const roundId = crypto.randomUUID();
 
-  // 3. One transaction: debit stake → credit payout → record the round.
+  // 2. One transaction: debit stake → credit payout → record the round.
   const balanceAfter = await withTransaction(async (client) => {
     await lockUser(client, userId);
 
@@ -130,9 +161,7 @@ export async function playRoulette(
       roundId,
       userId,
       betAmount: stake,
-      betType: type,
-      betValue: value,
-      resultNumber,
+      multiplier,
       payout,
       serverSeedHash,
     });
@@ -140,65 +169,45 @@ export async function playRoulette(
     return roundMoney(balance - stake + payout);
   });
 
+  const color = segmentColor(multiplier);
+
   return {
-    resultNumber,
-    resultColor,
+    segmentIndex,
+    multiplier,
+    segmentColor: color,
     won,
     payout,
+    betAmount: stake,
+    balanceAfter,
     serverSeedHash,
     roundId,
-    betAmount: stake,
-    betType: type,
-    betValue: value,
-    balanceAfter,
+    resultNumber: segmentIndex,
+    resultColor: color,
   };
-}
-/** Win rule per bet type. `betValue` is only set for `number` bets. */
-function didWin(
-  betType: BetType,
-  betValue: string | null,
-  resultNumber: number,
-  resultColor: RouletteColor,
-): boolean {
-  switch (betType) {
-    case 'number':
-      return betValue === String(resultNumber);
-    case 'red':
-      return resultColor === 'red';
-    case 'black':
-      return resultColor === 'black';
-    case 'green':
-      return resultNumber === 0;
-    default:
-      return false;
-  }
 }
 
 type RoundData = {
   roundId: string;
   userId: string;
   betAmount: number;
-  betType: BetType;
-  betValue: string | null;
-  resultNumber: number;
+  multiplier: number;
   payout: number;
   serverSeedHash: string;
 };
 
-/** Persists the round audit row (the ledger rows are written by the wallet service). */
+/** Persists the round audit row (ledger rows are written by the wallet service). */
 async function insertRound(client: PoolClient, data: RoundData): Promise<void> {
   await client.query(
     `INSERT INTO game_rounds
-       (id, user_id, bet_amount, bet_type, bet_value, result, payout, server_seed_hash)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+       (id, user_id, bet_amount, bet_type, bet_value, result, payout, multiplier, server_seed_hash)
+     VALUES ($1, $2, $3, 'spin', NULL, $4, $5, $6, $7)`,
     [
       data.roundId,
       data.userId,
       moneyString(data.betAmount),
-      data.betType,
-      data.betValue,
-      String(data.resultNumber),
+      String(data.multiplier),
       moneyString(data.payout),
+      moneyString(data.multiplier),
       data.serverSeedHash,
     ],
   );
@@ -215,33 +224,6 @@ function assertBetAmount(betAmount: number): number {
   }
 
   return stake;
-}
-
-function assertBetType(betType: BetType): BetType {
-  if (!BET_TYPES.includes(betType)) {
-    throw new AppError('INVALID_BET_TYPE', 400, `Bet type must be one of: ${BET_TYPES.join(', ')}`);
-  }
-
-  return betType;
-}
-
-/** Number bets must target an existing pocket: 0–36. */
-function assertNumberBet(betValue: string | number | null | undefined): string {
-  if (betValue === null || betValue === undefined || betValue === '') {
-    throw new AppError('INVALID_BET_VALUE', 400, 'A number bet requires betValue between 0 and 36');
-  }
-
-  const raw = String(betValue).trim();
-  if (!/^\d{1,2}$/.test(raw)) {
-    throw new AppError('INVALID_BET_VALUE', 400, 'betValue must be an integer between 0 and 36');
-  }
-
-  const number = Number(raw);
-  if (number < 0 || number > 36) {
-    throw new AppError('INVALID_BET_VALUE', 400, 'betValue must be an integer between 0 and 36');
-  }
-
-  return String(number);
 }
 
 function roundMoney(amount: number): number {

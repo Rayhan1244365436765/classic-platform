@@ -1,7 +1,7 @@
 import { Router } from 'express';
 
-import { authGuard } from '../../common/middleware/authGuard';
-import { deposit, getMyBalance, withdraw } from './wallet.controller';
+import { authGuard } from '../../common/middleware/authGuard.js';
+import { deposit, getMyBalance, withdraw } from './wallet.controller.js';
 
 export const walletRouter = Router();
 

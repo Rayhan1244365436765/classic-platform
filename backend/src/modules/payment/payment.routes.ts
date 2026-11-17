@@ -1,7 +1,7 @@
 import { Router } from 'express';
 
-import { authGuard } from '../../common/middleware/authGuard';
-import { deposit, myPayments, withdraw } from './payment.controller';
+import { authGuard } from '../../common/middleware/authGuard.js';
+import { deposit, myPayments, withdraw } from './payment.controller.js';
 
 export const paymentRouter = Router();
 

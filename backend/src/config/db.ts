@@ -1,6 +1,6 @@
 import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from 'pg';
 
-import { DATABASE_URL } from './env';
+import { DATABASE_URL } from './env.js';
 
 /**
  * Shared PostgreSQL connection pool.

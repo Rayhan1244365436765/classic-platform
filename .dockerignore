@@ -1,0 +1,24 @@
+# Keep the build context small: the nginx image builds `web/` and `admin/` from the
+# repository root, and without this every node_modules folder would be uploaded to
+# the Docker daemon on each build.
+**/node_modules
+**/dist
+**/build
+
+# Nothing here is needed inside an image.
+.git
+.gitignore
+.github
+.vscode
+.idea
+docs
+mobile
+desktop
+certbot
+**/*.log
+**/.DS_Store
+**/Thumbs.db
+
+# Secrets are injected at runtime by docker-compose, never baked into a layer.
+**/.env
+**/.env.*

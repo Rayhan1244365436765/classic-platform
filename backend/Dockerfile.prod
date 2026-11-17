@@ -1,0 +1,52 @@
+# syntax=docker/dockerfile:1
+#
+# Production image for the casino API.
+#
+#   docker build -f backend/Dockerfile.prod -t casino-backend ./backend
+#
+# Two stages: everything needed to compile TypeScript, then a runtime that carries
+# only the compiled output and production dependencies. The development image
+# (backend/Dockerfile) still runs `tsx watch` and is what docker-compose.yml uses.
+
+# ---------- build ----------------------------------------------------------
+FROM node:20-alpine AS build
+
+WORKDIR /app
+
+# bcrypt has a native addon: these are only needed when no prebuilt binary
+# matches the musl target, and they are discarded with this stage.
+RUN apk add --no-cache python3 make g++
+
+# `npm ci` is reproducible: it installs exactly what package-lock.json pins.
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY tsconfig.json ./
+COPY src ./src
+
+# Compile, then drop the dev dependencies so they never reach the runtime image.
+RUN npm run build && npm prune --omit=dev
+
+# ---------- runtime --------------------------------------------------------
+FROM node:20-alpine AS runtime
+
+WORKDIR /app
+
+ENV NODE_ENV=production \
+    PORT=3000
+
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
+COPY package.json ./
+
+# The API never needs to write to its own filesystem.
+USER node
+
+EXPOSE 3000
+
+# Node 20 ships fetch, so the health probe needs no extra tooling.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+# SIGTERM is handled in src/index.ts: in-flight bets finish before exit.
+CMD ["node", "dist/index.js"]

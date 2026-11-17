@@ -1,0 +1,155 @@
+# =============================================================================
+# Casino Platform — PRODUCTION stack (Ubuntu VPS)
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Services
+#   postgres  — Postgres 16, data in the `pgdata` volume, no host port
+#   migrate   — one-shot: applies backend/migrations in order, then exits
+#   backend   — compiled API on :3000 (internal only)
+#   nginx     — the only public container: serves web + admin, proxies /api
+#
+# Everything reads its secrets from `.env` (copy `.env.production` → `.env` first).
+# =============================================================================
+
+name: casino-platform
+
+services:
+  # ---------------------------------------------------------------------------
+  # Database
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required — copy .env.production to .env}
+      POSTGRES_DB: ${POSTGRES_DB:-casino}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-casino}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - casino
+    # Deliberately no `ports:` — the database must not be reachable from the
+    # internet. Use `docker compose exec postgres psql …` instead.
+
+  # ---------------------------------------------------------------------------
+  # Migrations — runs to completion, then the API is allowed to start
+  # ---------------------------------------------------------------------------
+  migrate:
+    image: postgres:16-alpine
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required — copy .env.production to .env}
+      PGSSLMODE: disable
+    volumes:
+      - ./backend/migrations:/migrations:ro
+      - ./backend/scripts/migrate.sh:/usr/local/bin/migrate.sh:ro
+    entrypoint: ["sh", "/usr/local/bin/migrate.sh"]
+    networks:
+      - casino
+
+  # ---------------------------------------------------------------------------
+  # API
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    expose:
+      - "3000"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - casino
+    stop_grace_period: 15s
+
+  # ---------------------------------------------------------------------------
+  # nginx + both React builds (the only service exposed to the internet)
+  # ---------------------------------------------------------------------------
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+      args:
+        # Same-origin API calls: nginx proxies /api, so no host is baked into the
+        # bundles and no CORS pre-flight is needed.
+        VITE_API_URL: /api
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Mounted (not only baked) so routing changes need a reload, not a rebuild.
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      # Certbot: certificates and the ACME webroot (created by the guide).
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    healthcheck:
+      # Probes nginx itself (serves the player app). Deliberately not /health: an
+      # API outage must not mark the frontend container unhealthy.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - casino
+
+  # ---------------------------------------------------------------------------
+  # Certificate renewal (optional, off by default)
+  #
+  #   docker compose -f docker-compose.prod.yml --profile tls up -d certbot
+  #
+  # Runs `certbot renew` twice a day; nginx picks the new certificate up on the
+  # next reload (see docs/DEPLOYMENT_VPS.md §7).
+  # ---------------------------------------------------------------------------
+  certbot:
+    image: certbot/certbot:latest
+    profiles: ["tls"]
+    restart: unless-stopped
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"
+
+volumes:
+  pgdata:
+    name: casino_pgdata
+
+networks:
+  casino:
+    name: casino_net

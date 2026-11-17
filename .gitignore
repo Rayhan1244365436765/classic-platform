@@ -9,6 +9,9 @@ build/
 .env
 .env.*
 !.env.example
+# The production template carries placeholders only and must ship with the repo,
+# so the deployment guide has something to copy on the server.
+!.env.production
 
 # Flutter / Dart
 .dart_tool/

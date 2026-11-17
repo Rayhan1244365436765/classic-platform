@@ -1,7 +1,7 @@
 import { Router } from 'express';
 
-import { adminGuard } from '../../common/middleware/adminGuard';
-import { authGuard } from '../../common/middleware/authGuard';
+import { adminGuard } from '../../common/middleware/adminGuard.js';
+import { authGuard } from '../../common/middleware/authGuard.js';
 import {
   approvePayment,
   getPayments,
@@ -9,7 +9,7 @@ import {
   getTransactions,
   getUsers,
   rejectPayment,
-} from './admin.controller';
+} from './admin.controller.js';
 
 export const adminRouter = Router();
 

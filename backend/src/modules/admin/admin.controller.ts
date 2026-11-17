@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 
-import { AppError } from '../../common/utils/AppError';
-import { requireUserId } from '../../common/utils/requireUser';
+import { AppError } from '../../common/utils/AppError.js';
+import { requireUserId } from '../../common/utils/requireUser.js';
 import {
   approvePayment as approvePaymentRequest,
   getPendingPayments as fetchPendingPayments,
@@ -9,7 +9,7 @@ import {
   getTransactions as fetchTransactions,
   getUsers as fetchUsers,
   rejectPayment as rejectPaymentRequest,
-} from './admin.service';
+} from './admin.service.js';
 
 /**
  * Admin read endpoints. Every handler is behind `authGuard` + `adminGuard`,

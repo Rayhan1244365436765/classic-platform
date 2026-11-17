@@ -1,5 +1,5 @@
-import { AppError } from '../../common/utils/AppError';
-import { query, withTransaction } from '../../config/db';
+import { AppError } from '../../common/utils/AppError.js';
+import { query, withTransaction } from '../../config/db.js';
 import {
   assertPaymentId,
   lockPaymentRequest,
@@ -7,8 +7,8 @@ import {
   PAYMENT_COLUMNS,
   type PaymentRequest,
   type PaymentRequestRow,
-} from '../payment/payment.service';
-import { createTransaction } from '../wallet/wallet.service';
+} from '../payment/payment.service.js';
+import { createTransaction } from '../wallet/wallet.service.js';
 
 /**
  * Admin reporting queries.

@@ -2,9 +2,9 @@ import crypto from 'node:crypto';
 
 import type { PoolClient } from 'pg';
 
-import { AppError } from '../../common/utils/AppError';
-import { query, withTransaction } from '../../config/db';
-import { createTransaction, getBalance, lockUser } from '../wallet/wallet.service';
+import { AppError } from '../../common/utils/AppError.js';
+import { query, withTransaction } from '../../config/db.js';
+import { createTransaction, getBalance, lockUser } from '../wallet/wallet.service.js';
 
 /**
  * Manual deposit / withdrawal requests (the bridge until a real payment gateway

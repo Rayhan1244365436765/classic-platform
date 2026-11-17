@@ -1,19 +1,20 @@
 import type { NextFunction, Request, Response } from 'express';
 
-import { AppError } from '../../../common/utils/AppError';
-import { requireUserId } from '../../../common/utils/requireUser';
-import { BET_TYPES, playRoulette, type BetType } from './roulette.service';
+import { AppError } from '../../../common/utils/AppError.js';
+import { requireUserId } from '../../../common/utils/requireUser.js';
+import { playSpin, wheelConfig } from './roulette.service.js';
 
 /**
  * POST /api/game/roulette/play
- * body: { betAmount: number, betType: 'red'|'black'|'green'|'number', betValue?: string }
+ * body: { betAmount: number } — the wheel picks the multiplier, so there is no
+ * bet type to choose. `betType`/`betValue` from older clients are ignored.
  */
 export async function play(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = requireUserId(req);
-    const { betAmount, betType, betValue } = readBetBody(req);
+    const betAmount = readBetAmount(req);
 
-    const result = await playRoulette(userId, betAmount, betType, betValue);
+    const result = await playSpin(userId, betAmount);
 
     res.status(201).json(result);
   } catch (error) {
@@ -21,25 +22,21 @@ export async function play(req: Request, res: Response, next: NextFunction): Pro
   }
 }
 
-type BetBody = {
-  betAmount: number;
-  betType: BetType;
-  betValue: string | null;
-};
-
 /**
- * Shape/type checks only (400 VALIDATION_ERROR); business rules such as the
- * pocket range and the funds check are enforced by the service.
+ * GET /api/game/roulette/segments
+ * Publishes the wheel layout, per-multiplier odds and the RTP so clients draw
+ * exactly the table the server settles on.
  */
-function readBetBody(req: Request): BetBody {
-  const body = (req.body ?? {}) as {
-    betAmount?: unknown;
-    betType?: unknown;
-    betValue?: unknown;
-  };
+export function getSegments(_req: Request, res: Response): void {
+  res.status(200).json(wheelConfig());
+}
 
-  const rawAmount = typeof body.betAmount === 'string' ? Number(body.betAmount) : body.betAmount;
-  if (typeof rawAmount !== 'number' || !Number.isFinite(rawAmount)) {
+function readBetAmount(req: Request): number {
+  const body = (req.body ?? {}) as { betAmount?: unknown };
+  const raw = body.betAmount;
+  const amount = typeof raw === 'string' ? Number(raw) : raw;
+
+  if (typeof amount !== 'number' || !Number.isFinite(amount)) {
     throw new AppError(
       'VALIDATION_ERROR',
       400,
@@ -47,16 +44,5 @@ function readBetBody(req: Request): BetBody {
     );
   }
 
-  if (typeof body.betType !== 'string' || !(BET_TYPES as readonly string[]).includes(body.betType)) {
-    throw new AppError(
-      'VALIDATION_ERROR',
-      400,
-      `betType: Bet type must be one of: ${BET_TYPES.join(', ')}`,
-    );
-  }
-
-  const betValue =
-    body.betValue === undefined || body.betValue === null ? null : String(body.betValue);
-
-  return { betAmount: rawAmount, betType: body.betType as BetType, betValue };
+  return amount;
 }

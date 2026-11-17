@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 
-import { loginSchema, registerSchema } from './auth.schema';
-import { loginUser, registerUser } from './auth.service';
+import { loginSchema, registerSchema } from './auth.schema.js';
+import { loginUser, registerUser } from './auth.service.js';
 
 /**
  * POST /api/auth/register
