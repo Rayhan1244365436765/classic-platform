@@ -112,9 +112,15 @@ services:
     volumes:
       # Mounted (not only baked) so routing changes need a reload, not a rebuild.
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-      # Certbot: certificates and the ACME webroot (created by the guide).
-      - ./certbot/conf:/etc/letsencrypt:ro
-      - ./certbot/www:/var/www/certbot:ro
+      # Certificates, read-only on purpose: nginx only READS them, so it can never
+      # create or copy anything inside this mount ("Read-only file system" is the
+      # expected answer to a mkdir here — issue certificates with certbot instead).
+      # CERT_DIR picks where certbot writes them:
+      #   /etc/letsencrypt   → certbot installed on the host (default)
+      #   ./certbot/conf     → certbot run through the stack (see the certbot service)
+      - ${CERT_DIR:-/etc/letsencrypt}:/etc/letsencrypt:ro
+      # ACME HTTP-01 webroot: certbot drops the challenge file here, nginx serves it.
+      - ${ACME_WEBROOT:-./certbot/www}:/var/www/certbot:ro
     healthcheck:
       # Probes nginx itself (serves the player app). Deliberately not /health: an
       # API outage must not mark the frontend container unhealthy.
@@ -139,8 +145,8 @@ services:
     profiles: ["tls"]
     restart: unless-stopped
     volumes:
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
+      - ${CERT_DIR:-/etc/letsencrypt}:/etc/letsencrypt
+      - ${ACME_WEBROOT:-./certbot/www}:/var/www/certbot
     entrypoint: /bin/sh
     command:
       - -c

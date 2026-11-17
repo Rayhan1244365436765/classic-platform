@@ -205,26 +205,50 @@ dig +short example.com admin.example.com
 
 ### 7.2 Put your domain in the nginx config
 
+`nginx/default.conf` already ships with **rb1920.com** (`www.rb1920.com` +
+`admin.rb1920.com`). If you deploy under another domain, swap it here — this
+rewrites the live `server_name`s *and* the certificate paths in the commented TLS
+block:
+
 ```bash
-sed -i 's/example\.com/yourdomain.com/g' nginx/default.conf
+sed -i 's/rb1920\.com/yourdomain.com/g' nginx/default.conf
 docker compose -f docker-compose.prod.yml exec nginx nginx -t      # syntax check
 docker compose -f docker-compose.prod.yml exec nginx nginx -s reload
 ```
 
 ### 7.3 Issue the certificate
 
-The ACME challenge is served from the mounted `./certbot/www` webroot, so port 80
-never has to be freed:
+nginx reads certificates from `/etc/letsencrypt` **inside** the container, mounted
+read-only from `CERT_DIR` (see `.env`). That mount is read-only on purpose: nginx
+never writes there, so `docker exec … nginx mkdir /etc/letsencrypt/…` always fails
+with *"Read-only file system"*. Only certbot writes certificates.
+
+Pick **one** of these two layouts; both end up in the same place.
+
+**A. certbot on the host (matches the default `CERT_DIR=/etc/letsencrypt`)**
 
 ```bash
-mkdir -p certbot/conf certbot/www
+sudo apt install -y certbot
 
+# the webroot must be the directory the container mounts at /var/www/certbot
+sudo certbot certonly --webroot -w /opt/casino-platform/certbot/www \
+  --agree-tos --no-eff-email -m you@example.com \
+  -d rb1920.com -d www.rb1920.com -d admin.rb1920.com
+
+sudo ls /etc/letsencrypt/live/rb1920.com/     # fullchain.pem, privkey.pem
+```
+
+**B. certbot in a container (no host install; keep `CERT_DIR=/etc/letsencrypt`
+and let both containers share the host path)**
+
+```bash
+mkdir -p /etc/letsencrypt
 docker run --rm \
-  -v "$PWD/certbot/conf:/etc/letsencrypt" \
+  -v /etc/letsencrypt:/etc/letsencrypt \
   -v "$PWD/certbot/www:/var/www/certbot" \
   certbot/certbot certonly --webroot -w /var/www/certbot \
   --email you@example.com --agree-tos --no-eff-email \
-  -d example.com -d www.example.com -d admin.example.com
+  -d rb1920.com -d www.rb1920.com -d admin.rb1920.com
 ```
 
 > Add `--dry-run` for a rehearsal that does not consume the rate limit.
@@ -232,14 +256,18 @@ docker run --rm \
 ### 7.4 Enable TLS
 
 Uncomment everything between `# ==== HTTPS` and the final redirect server at the
-bottom of `nginx/default.conf`, then:
+bottom of `nginx/default.conf`, then reload:
 
 ```bash
 docker compose -f docker-compose.prod.yml exec nginx nginx -t
 docker compose -f docker-compose.prod.yml exec nginx nginx -s reload
 ```
 
-Open `https://example.com` — the padlock should be green. Once it is, replace the
+> Only do this **after** `fullchain.pem` and `privkey.pem` exist: nginx refuses to
+> start when a `ssl_certificate` path is missing, which would also take the HTTP
+> site down.
+
+Open `https://rb1920.com` — the padlock should be green. Once it is, replace the
 two port-80 `server` blocks with the commented redirect block so plain HTTP
 bounces to HTTPS.
 
