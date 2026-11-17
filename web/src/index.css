@@ -7085,3 +7085,105 @@ button:not(:disabled):hover {
     transform: var(--die-settle);
   }
 }
+
+/* ==========================================================================
+   Mobile bet dock
+   --------------------------------------------------------------------------
+   On phones the stage (wheel / grid / reels) and the betting panel used to
+   stack, so you had to scroll the panel into view to bet — and the moment you
+   aimed at the board, the spin / roll / cash-out button scrolled away again.
+
+   Below 768px the panel becomes a dock pinned to the bottom of the viewport:
+
+   • every game page shares <aside class="rt__panel">, so one rule covers all 16
+     (the markup puts the primary action *after* the info blocks, so the action
+     group is pulled to the top of the dock with `order` — the chips and any
+     tables can scroll inside the dock, the button never moves);
+   • `.rt__body` reserves exactly the dock's height, so the board is never
+     hidden behind it;
+   • prose hints are dropped — they only steal dock height on a phone.
+
+   `--bet-dock-h` is declared twice on purpose: `vh` for older browsers, then
+   `svh` behind @supports so the dock ignores the mobile URL bar.
+   ========================================================================== */
+@media (max-width: 767px) {
+  .rt {
+    --bet-dock-h: min(44vh, 330px);
+  }
+
+  .rt__body {
+    padding-bottom: calc(var(--bet-dock-h) + 0.65rem);
+  }
+
+  .rt__panel {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 100;
+    gap: 0.6rem;
+    max-height: var(--bet-dock-h);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: 0.7rem 0.9rem calc(0.7rem + env(safe-area-inset-bottom, 0px));
+    border: 1px solid var(--border);
+    border-top: 1px solid var(--accent);
+    border-radius: 18px 18px 0 0;
+    background: linear-gradient(180deg, #121826 0%, #0a0e16 100%);
+    box-shadow: 0 -18px 44px rgb(0 0 0 / 62%);
+  }
+
+  /* Primary action first: a direct <button> in most games, an action <div>
+     group in Baccarat / DragonTiger / Blackjack / Dice. */
+  .rt__panel > button,
+  .rt__panel > div:not(.panel-block) {
+    order: -1;
+    flex: 0 0 auto;
+  }
+
+  .rt__panel > .rt__meta,
+  .rt__panel .rt__meta--left,
+  .rt__panel .cs-panel__foot {
+    display: none;
+  }
+
+  /* Tighter rhythm — the dock is a control strip, not a page. */
+  .rt__panel .panel-block {
+    gap: 0.4rem;
+  }
+
+  .rt__panel .chips {
+    gap: 0.35rem;
+  }
+
+  /* Cascade's cabinet is a full-height stage; keep it above the dock. */
+  .cs-cabinet {
+    height: calc(100svh - var(--bet-dock-h) - 96px);
+    min-height: 280px;
+  }
+}
+
+@supports (height: 100svh) {
+  @media (max-width: 767px) {
+    .rt {
+      --bet-dock-h: min(44svh, 330px);
+    }
+  }
+}
+
+/* Landscape phones, and the on-screen keyboard: not enough height to dock
+   without swallowing the board — fall back to the normal stacked panel. */
+@media (max-width: 767px) and (max-height: 460px) {
+  .rt__body {
+    padding-bottom: 0.85rem;
+  }
+
+  .rt__panel {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 18px 44px rgb(0 0 0 / 45%);
+  }
+}
+
