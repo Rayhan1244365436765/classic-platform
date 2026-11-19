@@ -18,8 +18,8 @@ import { createTransaction, getBalance, lockUser } from '../../wallet/wallet.ser
  * 20 segments; the multiplier is the only bet decision, so the house edge is a
  * property of this table, not of the player's choice:
  *
- *   RTP = Σ(segment multipliers) / segment count = 14 / 20 = 0.70
- *   House edge = 30%
+ *   RTP = Σ(segment multipliers) / segment count = 18 / 20 = 0.90
+ *   House edge = 10%
  *
  * Payout rules:
  *   * 0x   → the whole stake is lost.
@@ -31,8 +31,8 @@ import { createTransaction, getBalance, lockUser } from '../../wallet/wallet.ser
 
 /** Keep this in sync with the wheel drawn by the clients. */
 export const WHEEL_SEGMENTS: readonly number[] = [
-  10, 0, 0.5, 0, 0, 2, 0, 0, 0.5, 0,
-  0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0,
+  10, 3, 2, 1, 0.5, 0.5, 0.5, 0.5, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
 
 export const SEGMENT_COUNT = WHEEL_SEGMENTS.length;
@@ -73,7 +73,7 @@ export function segmentColor(multiplier: number): SegmentColor {
   return 'gray';
 }
 
-/** Theoretical return-to-player for this wheel (0.70 = 70%). */
+/** Theoretical return-to-player for this wheel (0.90 = 90%). */
 export function wheelRtp(): number {
   const total = WHEEL_SEGMENTS.reduce((sum, value) => sum + value, 0);
   return total / SEGMENT_COUNT;

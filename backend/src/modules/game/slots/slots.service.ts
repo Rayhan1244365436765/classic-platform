@@ -24,14 +24,14 @@ import { createTransaction, getBalance, lockUser } from '../../wallet/wallet.ser
  * A line pays when its three symbols are identical. The stake covers the whole
  * spin, so every winning line is paid on the full bet:
  *   payout = betAmount × winningLines × SLOT_PAYTABLE.lineMultiplier
- * With three lines the maximum is 3 × 8.4 = 25.2× the stake.
+ * With three lines the maximum is 3 × 10.8 = 32.4× the stake.
  *
  * --- RTP -------------------------------------------------------------------
  * P(line is 3 alike) = 6 triples / 6³ combos = 1/36 = 2.7778%
  *
  *   RTP = lines × P(line) × lineMultiplier
- *       = 3 × (1/36) × 8.4
- *       = 0.70   → house edge 30.0% exactly
+ *       = 3 × (1/36) × 10.8
+ *       = 0.90   → house edge 10.0% exactly
  *
  * (For reference: 6× per line, as originally suggested, yields only
  * 3 × 6/36 = 50% RTP — a 50% house edge, not 30%.)
@@ -52,7 +52,7 @@ export const SLOT_LINES: readonly (readonly [number, number, number])[] = [
 
 /** Payout per completed line, as a multiple of the *total* spin stake. */
 export const SLOT_PAYTABLE = {
-  lineMultiplier: 8.4,
+  lineMultiplier: 10.8,
   lines: SLOT_LINES.length,
 } as const;
 
@@ -100,7 +100,7 @@ export function slotsConfig(): {
 }
 
 /**
- * Theoretical return-to-player of the configured paytable (0.70 = 30% house
+ * Theoretical return-to-player of the configured paytable (0.90 = 10% house
  * edge). Server-side only — never part of a player-facing response.
  */
 export function slotsRtp(): number {

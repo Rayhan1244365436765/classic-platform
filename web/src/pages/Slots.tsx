@@ -12,8 +12,8 @@ import { playSound } from '../utils/sound';
  *   row 2 → cells 6 7 8
  *
  * The server draws the whole grid (one provably-fair index over 6⁹) and pays
- * every row of three identical symbols (`SLOT_PAYTABLE.lineMultiplier`, 8.4×
- * of the total bet, so all three rows pay 25.2×). This page only animates the
+ * every row of three identical symbols (`SLOT_PAYTABLE.lineMultiplier`, 10.8×
+ * of the total bet, so all three rows pay 32.4×). This page only animates the
  * reveal: nine reels scroll, stop column by column, then the paying rows glow.
  */
 

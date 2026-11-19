@@ -81,7 +81,7 @@ export type SlotsResult = {
   grid: SlotSymbol[];
   /** Indices of the rows that paid (0 = top, 1 = middle, 2 = bottom). */
   winningLines: number[];
-  /** Multiplier earned per completed line (8.4). */
+  /** Multiplier earned per completed line (10.8). */
   lineMultiplier: number;
   /** winningLines.length × lineMultiplier. */
   multiplier: number;

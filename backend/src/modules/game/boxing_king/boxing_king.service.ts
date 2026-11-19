@@ -181,7 +181,7 @@ export function findClusters(grid: readonly BoxingSymbol[]): BoxingCluster[] {
 /** Chance a board holds at least one paying cluster (measured, see above). */
 const HIT_RATE = 0.378676;
 
-/** Theoretical RTP of the paytable (0.9726 = 97.26%). */
+/** Theoretical RTP of the paytable (≈0.9742 = 97.42%). */
 export function boxingKingRtp(): number {
   return (
     CLUSTER_PAYS.small * CLUSTER_FREQUENCY.small +
