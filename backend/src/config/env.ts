@@ -83,3 +83,15 @@ export const CORS_ORIGIN: string[] = (process.env.CORS_ORIGIN ?? '')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
+
+/**
+ * Opt-in flag for the development-only wallet endpoints
+ * (`POST /api/wallet/deposit`, `POST /api/wallet/withdraw`).
+ *
+ * These credit/debit a wallet directly, bypassing the operator-reviewed
+ * `payment/*` flow, so they must never be reachable in production — otherwise a
+ * player could mint their own balance. The route gate (see `wallet.routes.ts`)
+ * keeps them disabled in production unless this is explicitly set to `true`.
+ */
+export const ENABLE_DEV_WALLET_ENDPOINTS: boolean =
+  process.env.ENABLE_DEV_WALLET_ENDPOINTS === 'true';
