@@ -10,6 +10,7 @@ import ClassicRoulette from './pages/ClassicRoulette';
 import Dice from './pages/Dice';
 import Dice3D from './pages/Dice3D';
 import FruitBonanza from './pages/FruitBonanza';
+import FortuneGems from './pages/FortuneGems';
 import DragonTiger from './pages/DragonTiger';
 import Keno from './pages/Keno';
 import Lobby from './pages/Lobby';
@@ -160,6 +161,14 @@ function App() {
           element={
             <ProtectedRoute>
               <BoxingKing />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/fortune-gems"
+          element={
+            <ProtectedRoute>
+              <FortuneGems />
             </ProtectedRoute>
           }
         />
