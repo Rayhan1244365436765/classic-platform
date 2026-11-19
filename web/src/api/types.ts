@@ -649,6 +649,59 @@ export type BoxingKingConfig = {
   houseEdge: number;
 };
 
+/** A paying 4+ cluster on the Fortune Gems board. */
+export type FortuneCluster = {
+  symbol: string;
+  cells: number[];
+  size: number;
+  tier: 'small' | 'medium' | 'large' | 'huge';
+  /** Multiple of the bet this cluster pays. */
+  pay: number;
+};
+
+/** Response of POST /game/fortune_gems/play. */
+export type FortuneGemsResult = {
+  /** Twelve symbols, row-major, 4 per row. */
+  grid: string[];
+  clusters: FortuneCluster[];
+  /** Cells belonging to a paying cluster (the golden pulse). */
+  winningCells: number[];
+  /** Sum of the clusters' pays. */
+  multiplier: number;
+  payout: number;
+  won: boolean;
+  betAmount: number;
+  balanceAfter: number;
+  biggestCluster: number;
+  serverSeedHash: string;
+  roundId: string;
+};
+
+/** Cluster paytable: payoff by cluster size, as a multiple of the bet. */
+export type FortunePays = {
+  small: number;
+  medium: number;
+  large: number;
+  huge: number;
+};
+
+/** Response of GET /game/fortune_gems/config. */
+export type FortuneGemsConfig = {
+  symbols: string[];
+  cols: number;
+  rows: number;
+  cells: number;
+  outcomes: number;
+  minCluster: number;
+  pays: FortunePays;
+  /** The table as briefed (2/5/15/50), kept so the calibration stays visible. */
+  briefPays: FortunePays;
+  frequency: FortunePays;
+  hitRate: number;
+  rtp: number;
+  houseEdge: number;
+};
+
 /** Every API error uses this envelope. */
 export type ApiErrorBody = {
   error: {
@@ -656,3 +709,4 @@ export type ApiErrorBody = {
     message: string;
   };
 };
+

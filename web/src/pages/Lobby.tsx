@@ -64,6 +64,7 @@ const GAMES: Game[] = [
   { id: 'teenpatti', title: 'Teen Patti 🃏', category: 'live', color: 'linear-gradient(135deg,#0891b2,#164e63)', icon: '🃏', active: true, badge: 'NEW', path: '/teenpatti' },
   { id: 'dragontiger', title: 'Dragon Tiger 🐉', category: 'live', color: 'linear-gradient(135deg,#4338ca,#1e1b4b)', icon: '🐉', active: true, badge: 'NEW', path: '/dragontiger' },
   { id: 'fruit-bonanza', title: 'Fruit Bonanza 🍉', category: 'slot', color: 'linear-gradient(135deg,#f59e0b,#7c2d12)', icon: '🍉', active: true, badge: 'NEW', path: '/fruit-bonanza' },
+  { id: 'fortune-gems', title: 'Fortune Gems 💎', category: 'slot', color: 'linear-gradient(135deg,#d4af37,#5e0f1a)', icon: '💎', active: true, badge: 'NEW', path: '/fortune-gems' },
   { id: 'dragon-tiger', title: 'Dragon Tiger', category: 'live', color: 'linear-gradient(135deg,#dc2626,#4c0519)', icon: '🐉', badge: 'HOT' },
   { id: 'lucky-bingo', title: 'Lucky Bingo', category: 'slot', color: 'linear-gradient(135deg,#7c3aed,#4c1d95)', icon: '🎱' },
   { id: 'ganesha-gold', title: 'Ganesha Gold', category: 'slot', color: 'linear-gradient(135deg,#d97706,#78350f)', icon: '🐘' },

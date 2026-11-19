@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 
 import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, PlinkoConfig, PlinkoResult } from '../api/types';
-import { ArrowLeftIcon, WalletIcon } from '../components/Icons';
-import { LivePlayerBadge } from '../components/LivePlayerBadge';
-import { SoundToggle } from '../components/SoundToggle';
+import { GameShell } from '../components/GameShell';
 import { playSound } from '../utils/sound';
 
 /**
@@ -33,7 +30,6 @@ const DROP_MS = 150;
 
 /** Fallback pay table — mirrors the backend. */
 const FALLBACK_MULTIPLIERS = [5.49, 2.05, 1.08, 0.98, 0.49, 0.98, 1.08, 2.05, 5.49];
-const CHIPS = [1, 5, 10, 50, 100];
 const DEFAULT_BET = 10;
 
 type Phase = 'idle' | 'dropping' | 'landed';
@@ -424,168 +420,81 @@ export default function Plinko() {
     }
   }
 
-  const balanceLabel = balance === null ? '···' : money(balance);
   const stake = Number(amount) || 0;
   const previewStake = stake > 0 ? stake : DEFAULT_BET;
   const dropping = phase === 'dropping';
-  const lastPayout = result && phase === 'landed' ? result.payout : 0;
 
   return (
-    <div className="rt">
-      <header className="rt__topbar">
-        <Link to="/" className="rt__back">
-          <ArrowLeftIcon className="icon icon--sm" />
-          Back to Lobby
-        </Link>
-
-        <h1 className="rt__title">Plinko</h1>
-
-        <SoundToggle />
-
-        <LivePlayerBadge baseCount={2400} />
-
-        <span
-          className={`balance-pill${balanceError ? ' balance-pill--error' : ''}`}
-          title={balanceError ?? 'Current balance'}
-        >
-          <WalletIcon className="icon icon--sm" />
-          {balanceLabel}
-        </span>
-      </header>
-
-      <main className="rt__body">
-        <section className="rt__stage">
-          <div className={`plinko${dropping ? ' plinko--dropping' : ''}`}>
-            <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H} className="plinko__board" />
-          </div>
-
-          {phase === 'landed' && result && (
-            <div
-              className={`plinko-result${
-                result.multiplier >= 1 ? ' plinko-result--win' : ' plinko-result--lose'
-              }`}
-              role="status"
-              aria-live="polite"
-            >
-              <p className="plinko-result__headline">
-                {result.multiplier >= 5
-                  ? 'MEGA HIT!'
-                  : result.multiplier >= 2
-                    ? 'Big win!'
-                    : result.multiplier >= 1
-                      ? 'Nice drop'
-                      : 'Small loss'}
-              </p>
-              <p className="plinko-result__amount">
-                {result.multiplier.toFixed(2)}× · {money(result.payout)}
-              </p>
-              <p className="plinko-result__caption">
-                Slot {result.slot + 1} of {SLOTS} · {result.path.join('')}
-              </p>
-            </div>
+    <GameShell
+      balance={balance}
+      balanceError={balanceError}
+      onBack={() => window.history.back()}
+      betAmount={previewStake}
+      setBetAmount={(value) => setAmount(String(value))}
+      onSpin={() => void drop()}
+      spinLabel={dropping ? 'DROPPING' : 'DROP'}
+      isSpinning={dropping}
+      controls={
+        <div className="plinko-history" aria-label="Recent drops" style={{ display: 'flex', gap: 6, overflowX: 'auto' }}>
+          {history.length === 0 ? (
+            <span className="plinko-history__empty">no drops yet</span>
+          ) : (
+            history.map((entry, index) => (
+              <span
+                key={`${entry.roundId}-${index}`}
+                className={`plinko-history__pill ${
+                  entry.multiplier >= 2
+                    ? 'plinko-history__pill--high'
+                    : entry.multiplier >= 1
+                      ? 'plinko-history__pill--even'
+                      : 'plinko-history__pill--low'
+                }`}
+                title={`Slot ${entry.slot + 1}`}
+              >
+                {entry.multiplier.toFixed(2)}×
+              </span>
+            ))
           )}
+        </div>
+      }
+    >
+      <section className="rt__stage">
+        <div className={`plinko${dropping ? ' plinko--dropping' : ''}`}>
+          <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H} className="plinko__board" />
+        </div>
 
-          <p className="rt__fair">
-            Provably fair · seed hash published before every drop · {ROWS} rows, {SLOTS} slots
-          </p>
-          {balanceError && <p className="error">{balanceError}</p>}
-        </section>
-
-        <aside className="rt__panel">
-          <div className="panel-block">
-            <div className="panel-label">
-              Bet amount
-              <span className="panel-value">{money(previewStake)}</span>
-            </div>
-            <div className="chips">
-              {CHIPS.map((chip) => (
-                <button
-                  key={chip}
-                  type="button"
-                  className={`chip${stake === chip ? ' chip--active' : ''}`}
-                  onClick={() => setAmount(String(chip))}
-                  disabled={dropping}
-                  aria-pressed={stake === chip}
-                >
-                  ${chip}
-                </button>
-              ))}
-              <input
-                className="chips__custom"
-                type="number"
-                value={amount}
-                onChange={(event) => setAmount(event.target.value)}
-                min={0.5}
-                step={0.5}
-                disabled={dropping}
-                aria-label="Custom bet amount"
-              />
-            </div>
-          </div>
-
-          <div className="panel-block">
-            <div className="panel-label">
-              Last drop
-              <span className="panel-value">
-                {result ? `${result.multiplier.toFixed(2)}×` : '—'}
-              </span>
-            </div>
-            <div className="payout">
-              <span className="payout__amount payout__amount--gold">
-                <span className="payout__label">Paid</span>
-                {money(lastPayout)}
-              </span>
-              <span className="payout__amount payout__amount--gray">
-                <span className="payout__label">Slot</span>
-                {result ? `${result.slot + 1}/${SLOTS}` : '—'}
-              </span>
-            </div>
-            <div className="plinko-history" aria-label="Recent drops">
-              {history.length === 0 ? (
-                <span className="plinko-history__empty">no drops yet</span>
-              ) : (
-                history.map((entry, index) => (
-                  <span
-                    key={`${entry.roundId}-${index}`}
-                    className={`plinko-history__pill ${
-                      entry.multiplier >= 2
-                        ? 'plinko-history__pill--high'
-                        : entry.multiplier >= 1
-                          ? 'plinko-history__pill--even'
-                          : 'plinko-history__pill--low'
-                    }`}
-                    title={`Slot ${entry.slot + 1}`}
-                  >
-                    {entry.multiplier.toFixed(2)}×
-                  </span>
-                ))
-              )}
-            </div>
-          </div>
-
-          <button
-            type="button"
-            className="aviator-action"
-            onClick={() => void drop()}
-            disabled={dropping}
+        {phase === 'landed' && result && (
+          <div
+            className={`plinko-result${
+              result.multiplier >= 1 ? ' plinko-result--win' : ' plinko-result--lose'
+            }`}
+            role="status"
+            aria-live="polite"
           >
-            <span className="aviator-action__title">
-              {dropping ? 'DROPPING…' : 'DROP BALL'}
-            </span>
-            <span className="aviator-action__sub">{money(previewStake)}</span>
-          </button>
+            <p className="plinko-result__headline">
+              {result.multiplier >= 5
+                ? 'MEGA HIT!'
+                : result.multiplier >= 2
+                  ? 'Big win!'
+                  : result.multiplier >= 1
+                    ? 'Nice drop'
+                    : 'Small loss'}
+            </p>
+            <p className="plinko-result__amount">
+              {result.multiplier.toFixed(2)}× · {money(result.payout)}
+            </p>
+            <p className="plinko-result__caption">
+              Slot {result.slot + 1} of {SLOTS} · {result.path.join('')}
+            </p>
+          </div>
+        )}
 
-          {error && <p className="error">{error}</p>}
-
-          <p className="rt__meta">
-            {result
-              ? `Round ${result.roundId.slice(0, 8)} · seed ${result.serverSeedHash.slice(0, 12)}…`
-              : 'The server publishes a seed hash before every drop'}
-          </p>
-        </aside>
-
-      </main>
-    </div>
+        <p className="rt__fair">
+          Provably fair · seed hash published before every drop · {ROWS} rows, {SLOTS} slots
+        </p>
+        {error && <p className="error">{error}</p>}
+      </section>
+    </GameShell>
   );
 }
 

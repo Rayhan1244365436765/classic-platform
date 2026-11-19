@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 
 import { api, getApiErrorMessage } from '../api/client';
 import type {
@@ -9,33 +8,16 @@ import type {
   BaccaratConfig,
   BaccaratResult,
 } from '../api/types';
-import { ArrowLeftIcon, WalletIcon } from '../components/Icons';
-import { LivePlayerBadge } from '../components/LivePlayerBadge';
-import { SoundToggle } from '../components/SoundToggle';
+import { GameShell } from '../components/GameShell';
 import { playSound } from '../utils/sound';
 
 /**
  * Baccarat (Punto Banco) — one 52-card deck, bet on Player, Banker or Tie.
- *
- * The server settles the whole hand and returns both hands plus the payout; this
- * page only replays the deal. Cards slide in one at a time in real deal order
- * (Player, Banker, Player, Banker, then any third cards), the totals count up as
- * they land, and the winning side gets the felt glow. Because the artwork is
- * driven by the server's hands, the table can never show a result that wasn't
- * paid.
- *
- * Totals are mod 10 (7 + 8 = 5); a tie returns Player/Banker stakes. Payouts are
- * 2× Player, 1.95× Banker (5% commission) and 8× Tie — see
- * `GET /game/baccarat/config` for the exact odds the backend computed.
  */
 
-const CHIPS = [1, 5, 10, 50, 100];
-/** Preview stake used before the player types one. */
 const DEFAULT_BET = 10;
-/** Gap between dealt cards. */
 const CARD_MS = 320;
 
-/** Used only if the config request fails — mirrors the backend defaults. */
 const FALLBACK_CONFIG: BaccaratConfig = {
   deckSize: 52,
   naturalTotal: 8,
@@ -49,7 +31,6 @@ const FALLBACK_CONFIG: BaccaratConfig = {
 
 const SUIT_SYMBOL: Record<string, string> = { S: '♠', H: '♥', D: '♦', C: '♣' };
 
-/** One card in the order it hits the felt. */
 type DealStep = { side: 'player' | 'banker'; index: number };
 
 function money(value: number): string {
@@ -62,7 +43,6 @@ function money(value: number): string {
   })}`;
 }
 
-/** Card code → face details. */
 function parseCard(code: BaccaratCard): { rank: string; suit: string; red: boolean } {
   const rank = code.slice(0, -1);
   const suit = code.slice(-1);
@@ -74,10 +54,6 @@ function parseCard(code: BaccaratCard): { rank: string; suit: string; red: boole
   };
 }
 
-/**
- * Player, Banker, Player, Banker — then the player's third card, then the
- * banker's, exactly like a real shoe.
- */
 function buildDealSequence(playerCount: number, bankerCount: number): DealStep[] {
   const sequence: DealStep[] = [];
   const opening = Math.min(2, playerCount, bankerCount);
@@ -107,7 +83,6 @@ async function fetchConfig(): Promise<BaccaratConfig> {
   return data;
 }
 
-/** A face-up card; `enter` adds the slide-in when it just landed. */
 function CardView({ code, enter }: { code: BaccaratCard; enter: boolean }) {
   const card = parseCard(code);
 
@@ -122,12 +97,10 @@ function CardView({ code, enter }: { code: BaccaratCard; enter: boolean }) {
   );
 }
 
-/** An undealt slot — keeps the row from jumping as cards arrive. */
 function CardBack() {
   return <div className="bac-card bac-card--back" aria-hidden="true" />;
 }
 
-/** Baccarat value of one card: A = 1, 2–9 face, T/J/Q/K = 0. */
 function cardValue(code: BaccaratCard): number {
   const rank = code.slice(0, -1);
 
@@ -143,6 +116,7 @@ export default function Baccarat() {
 
   const [amount, setAmount] = useState(String(DEFAULT_BET));
   const [config, setConfig] = useState<BaccaratConfig>(FALLBACK_CONFIG);
+  const [betOn, setBetOn] = useState<BaccaratBet>('player');
 
   const [result, setResult] = useState<BaccaratResult | null>(null);
   const [revealed, setRevealed] = useState(0);
@@ -158,7 +132,6 @@ export default function Baccarat() {
     }
   }, []);
 
-  // Never leave a timer behind when the page unmounts.
   useEffect(() => stopDeal, [stopDeal]);
 
   const refreshBalance = useCallback(async () => {
@@ -187,7 +160,7 @@ export default function Baccarat() {
         const next = await fetchConfig();
         if (!cancelled) setConfig(next);
       } catch {
-        // Keep FALLBACK_CONFIG — the table still works with the mirrored numbers.
+        // Keep FALLBACK_CONFIG
       }
     }
 
@@ -200,9 +173,7 @@ export default function Baccarat() {
 
   const stake = Number(amount);
   const validStake = Number.isFinite(stake) && stake > 0 ? Math.round(stake * 100) / 100 : 0;
-  const balanceLabel = balance === null ? '—' : money(balance);
 
-  /** Every card that will hit the felt this hand, in order. */
   const sequence = result ? buildDealSequence(result.playerHand.length, result.bankerHand.length) : [];
   const settled = result !== null && revealed >= sequence.length;
   const visibleSteps = sequence.slice(0, revealed);
@@ -215,7 +186,6 @@ export default function Baccarat() {
     return last !== undefined && last.side === side && last.index === index;
   };
 
-  /** Running total of the cards already on the felt. */
   const runningTotal = (side: 'player' | 'banker'): string => {
     if (!result) return '–';
 
@@ -248,7 +218,6 @@ export default function Baccarat() {
       setResult(data);
       setRevealed(0);
 
-      // Replay the deal: one card every CARD_MS, in real shoe order.
       const steps = buildDealSequence(data.playerHand.length, data.bankerHand.length).length;
       await new Promise<void>((resolve) => {
         let shown = 0;
@@ -281,244 +250,139 @@ export default function Baccarat() {
     result ? (side === 'player' ? result.playerHand : result.bankerHand) : [];
 
   return (
-    <div className="rt">
-      <header className="rt__topbar">
-        <Link to="/" className="rt__back">
-          <ArrowLeftIcon className="icon icon--sm" />
-          Back to Lobby
-        </Link>
-
-        <h1 className="rt__title">Baccarat ♠️</h1>
-
-        <SoundToggle />
-
-        <LivePlayerBadge baseCount={2600} />
-
-        <span
-          className={`balance-pill${balanceError ? ' balance-pill--error' : ''}`}
-          title={balanceError ?? 'Current balance'}
-        >
-          <WalletIcon className="icon icon--sm" />
-          {balanceLabel}
-        </span>
-      </header>
-
-      <main className="rt__body">
-        <section className="rt__stage">
-          <div className={`bac-table${dealing ? ' bac-table--dealing' : ''}`}>
-            <p className="bac-table__rule">
-              Tie returns Player &amp; Banker stakes · totals count mod 10
-            </p>
-
-            <div className="bac-table__seats">
-              <div
-                className={`bac-seat${
-                  settled && result.winner === 'player' ? ' bac-seat--winner' : ''
-                }`}
-              >
-                <span className="bac-seat__label">
-                  Player
-                  <strong className="bac-seat__total">{runningTotal('player')}</strong>
-                </span>
-
-                <div className="bac-hand">
-                  {result
-                    ? seatCards('player').map((code, index) =>
-                        isVisible('player', index) ? (
-                          <CardView
-                            key={`p-${index}`}
-                            code={code}
-                            enter={justLanded('player', index)}
-                          />
-                        ) : (
-                          <CardBack key={`p-${index}`} />
-                        ),
-                      )
-                    : [0, 1].map((slot) => <CardBack key={`p-slot-${slot}`} />)}
-                </div>
-
-                {settled && result.betOn === 'player' && (
-                  <span className="bac-seat__bet">your bet</span>
-                )}
-              </div>
-
-              <div className="bac-table__vline" aria-hidden="true" />
-
-              <div
-                className={`bac-seat${
-                  settled && result.winner === 'banker' ? ' bac-seat--winner' : ''
-                }`}
-              >
-                <span className="bac-seat__label">
-                  Banker
-                  <strong className="bac-seat__total">{runningTotal('banker')}</strong>
-                </span>
-
-                <div className="bac-hand">
-                  {result
-                    ? seatCards('banker').map((code, index) =>
-                        isVisible('banker', index) ? (
-                          <CardView
-                            key={`b-${index}`}
-                            code={code}
-                            enter={justLanded('banker', index)}
-                          />
-                        ) : (
-                          <CardBack key={`b-${index}`} />
-                        ),
-                      )
-                    : [0, 1].map((slot) => <CardBack key={`b-slot-${slot}`} />)}
-                </div>
-
-                {settled && result.betOn === 'banker' && (
-                  <span className="bac-seat__bet">your bet</span>
-                )}
-              </div>
-            </div>
-
-            <p className="bac-table__note">
-              {dealing
-                ? 'Dealing…'
-                : settled && result.natural
-                  ? 'Natural 8 or 9 — both sides stand'
-                  : settled
-                    ? `Player ${result.playerTotal} · Banker ${result.bankerTotal}`
-                    : 'Player draws on 0–5 · Banker follows the table'}
-            </p>
-          </div>
-
-          {result && settled && (
-            <div
-              className={`bac-result bac-result--${result.outcome}`}
-              role="status"
-              aria-live="polite"
-            >
-              <p className="bac-result__headline">
-                {result.winner === 'tie' ? 'TIE' : `${result.winner.toUpperCase()} WINS`}
-              </p>
-              <p className="bac-result__amount">
-                {result.outcome === 'won'
-                  ? `+${money(result.payout - result.betAmount)}`
-                  : result.outcome === 'push'
-                    ? `stake returned · ${money(result.payout)}`
-                    : `-${money(result.betAmount)}`}
-              </p>
-              <p className="bac-result__caption">
-                You backed {result.betOn.toUpperCase()} ·{' '}
-                {result.outcome === 'won'
-                  ? `paid ${result.multiplier}× your bet`
-                  : result.outcome === 'push'
-                    ? 'a tie returns Player and Banker stakes'
-                    : `${result.winner.toUpperCase()} took it`}
-              </p>
-            </div>
-          )}
-        </section>
-
-        <aside className="rt__panel">
-          <div className="panel-block">
-            <div className="panel-label">
-              Bet amount
-              <span className="panel-value">{money(validStake)}</span>
-            </div>
-            <div className="chips">
-              {CHIPS.map((chip) => (
-                <button
-                  key={chip}
-                  type="button"
-                  className={`chip${validStake === chip ? ' chip--active' : ''}`}
-                  onClick={() => {
-                    playSound('click');
-                    setAmount(String(chip));
-                  }}
-                  disabled={dealing}
-                  aria-pressed={validStake === chip}
-                >
-                  ${chip}
-                </button>
-              ))}
-              <input
-                className="chips__custom"
-                type="number"
-                value={amount}
-                onChange={(event) => setAmount(event.target.value)}
-                min={0.5}
-                step={0.5}
-                disabled={dealing}
-                aria-label="Custom bet amount"
-              />
-            </div>
-          </div>
-
-          <div className="panel-block">
-            <div className="panel-label">
-              Table limits
-              <span className="panel-value">
-                {config.payouts.player}× / {config.payouts.banker}× / {config.payouts.tie}×
-              </span>
-            </div>
-            <ul className="bac-odds">
-              {(['player', 'banker', 'tie'] as const).map((side) => (
-                <li key={side} className="bac-odds__row">
-                  <span className="bac-odds__side">{side}</span>
-                  <span className="bac-odds__pay">{config.payouts[side]}×</span>
-                  <span className="bac-odds__rtp">{(config.rtp[side] * 100).toFixed(2)}% RTP</span>
-                </li>
-              ))}
-            </ul>
-            <p className="rt__meta rt__meta--left">
-              Banker pays 1.95× — the 2× win less a {Math.round(config.bankerCommission * 100)}%
-              commission.
-            </p>
-          </div>
-
-          <div className="bac-actions">
+    <GameShell
+      balance={balance}
+      balanceError={balanceError}
+      onBack={() => window.history.back()}
+      betAmount={validStake}
+      setBetAmount={(value) => setAmount(String(value))}
+      onSpin={() => void bet(betOn)}
+      spinLabel={dealing ? 'DEALING…' : `BET ${betOn.toUpperCase()}`}
+      isSpinning={dealing}
+      controls={
+        <div className="chips" style={{ flexWrap: 'nowrap' }}>
+          {(['player', 'tie', 'banker'] as const).map((side) => (
             <button
+              key={side}
               type="button"
-              className="bac-action bac-action--player"
-              onClick={() => void bet('player')}
-              disabled={dealing || validStake <= 0}
+              className={`chip${betOn === side ? ' chip--active' : ''}`}
+              onClick={() => {
+                playSound('click');
+                setBetOn(side);
+              }}
+              disabled={dealing}
+              aria-pressed={betOn === side}
             >
-              <span className="bac-action__title">BET PLAYER</span>
-              <span className="bac-action__sub">
-                {config.payouts.player}× · {money(validStake * config.payouts.player)}
-              </span>
+              {side.toUpperCase()}
             </button>
-
-            <button
-              type="button"
-              className="bac-action bac-action--tie"
-              onClick={() => void bet('tie')}
-              disabled={dealing || validStake <= 0}
-            >
-              <span className="bac-action__title">BET TIE</span>
-              <span className="bac-action__sub">
-                {config.payouts.tie}× · {money(validStake * config.payouts.tie)}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              className="bac-action bac-action--banker"
-              onClick={() => void bet('banker')}
-              disabled={dealing || validStake <= 0}
-            >
-              <span className="bac-action__title">BET BANKER</span>
-              <span className="bac-action__sub">
-                {config.payouts.banker}× · {money(validStake * config.payouts.banker)}
-              </span>
-            </button>
-          </div>
-
-          {error && <p className="error">{error}</p>}
-
-          <p className="rt__meta">
-            {result
-              ? `Round ${result.roundId.slice(0, 8)} · seed ${result.serverSeedHash.slice(0, 12)}…`
-              : 'Provably fair · one committed shuffle per hand'}
+          ))}
+        </div>
+      }
+    >
+      <section className="rt__stage">
+        <div className={`bac-table${dealing ? ' bac-table--dealing' : ''}`}>
+          <p className="bac-table__rule">
+            Tie returns Player &amp; Banker stakes · totals count mod 10
           </p>
-        </aside>
-      </main>
-    </div>
+
+          <div className="bac-table__seats">
+            <div
+              className={`bac-seat${
+                settled && result?.winner === 'player' ? ' bac-seat--winner' : ''
+              }`}
+            >
+              <span className="bac-seat__label">
+                Player
+                <strong className="bac-seat__total">{runningTotal('player')}</strong>
+              </span>
+
+              <div className="bac-hand">
+                {result
+                  ? seatCards('player').map((code, index) =>
+                      isVisible('player', index) ? (
+                        <CardView
+                          key={`p-${index}`}
+                          code={code}
+                          enter={justLanded('player', index)}
+                        />
+                      ) : (
+                        <CardBack key={`p-${index}`} />
+                      ),
+                    )
+                  : [0, 1].map((slot) => <CardBack key={`p-slot-${slot}`} />)}
+              </div>
+
+              {settled && result?.betOn === 'player' && <span className="bac-seat__bet">your bet</span>}
+            </div>
+
+            <div className="bac-table__vline" aria-hidden="true" />
+
+            <div
+              className={`bac-seat${
+                settled && result?.winner === 'banker' ? ' bac-seat--winner' : ''
+              }`}
+            >
+              <span className="bac-seat__label">
+                Banker
+                <strong className="bac-seat__total">{runningTotal('banker')}</strong>
+              </span>
+
+              <div className="bac-hand">
+                {result
+                  ? seatCards('banker').map((code, index) =>
+                      isVisible('banker', index) ? (
+                        <CardView
+                          key={`b-${index}`}
+                          code={code}
+                          enter={justLanded('banker', index)}
+                        />
+                      ) : (
+                        <CardBack key={`b-${index}`} />
+                      ),
+                    )
+                  : [0, 1].map((slot) => <CardBack key={`b-slot-${slot}`} />)}
+              </div>
+
+              {settled && result?.betOn === 'banker' && <span className="bac-seat__bet">your bet</span>}
+            </div>
+          </div>
+
+          <p className="bac-table__note">
+            {dealing
+              ? 'Dealing…'
+              : settled && result?.natural
+                ? 'Natural 8 or 9 — both sides stand'
+                : settled && result
+                  ? `Player ${result.playerTotal} · Banker ${result.bankerTotal}`
+                  : `Player ${config.payouts.player}× · Banker ${config.payouts.banker}× · Tie ${config.payouts.tie}×`}
+          </p>
+        </div>
+
+        {result && settled && (
+          <div className={`bac-result bac-result--${result.outcome}`} role="status" aria-live="polite">
+            <p className="bac-result__headline">
+              {result.winner === 'tie' ? 'TIE' : `${result.winner.toUpperCase()} WINS`}
+            </p>
+            <p className="bac-result__amount">
+              {result.outcome === 'won'
+                ? `+${money(result.payout - result.betAmount)}`
+                : result.outcome === 'push'
+                  ? `stake returned · ${money(result.payout)}`
+                  : `-${money(result.betAmount)}`}
+            </p>
+            <p className="bac-result__caption">
+              You backed {result.betOn.toUpperCase()} ·{' '}
+              {result.outcome === 'won'
+                ? `paid ${result.multiplier}× your bet`
+                : result.outcome === 'push'
+                  ? 'a tie returns Player and Banker stakes'
+                  : `${result.winner.toUpperCase()} took it`}
+            </p>
+          </div>
+        )}
+
+        {error && <p className="error">{error}</p>}
+      </section>
+    </GameShell>
   );
 }

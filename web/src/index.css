@@ -7187,3 +7187,1290 @@ button:not(:disabled):hover {
   }
 }
 
+/* ==========================================================================
+   Fortune Gems — 4×3 cluster slot in a red-and-gold cabinet
+   --------------------------------------------------------------------------
+   The page reuses the shared `.rt` shell, so the mobile bet dock above applies
+   to it unchanged: on a phone the chips, paytable and SPIN pin to the bottom.
+
+   Look: the stage is deep maroon under a pool of gold light, the cabinet has a
+   brushed-gold bezel and an engraved filigree line, and the reels are dark
+   pockets holding oversized gems that cast a long hard shadow.
+   The top gem is drawn in CSS (`.fg-coin`) because U+1FA99 is missing from
+   older emoji fonts and showed up as an empty box.
+   ========================================================================== */
+.fg {
+  --fg-gold: #f0c24a;
+  --fg-gold-pale: #ffe9a8;
+  --fg-pocket-top: #1a0b0b;
+  --fg-pocket-bottom: #0d0404;
+
+  background:
+    radial-gradient(ellipse 72% 46% at 50% -8%, rgb(255 176 84 / 24%), transparent 70%),
+    radial-gradient(ellipse 64% 42% at 50% 44%, rgb(214 68 60 / 22%), transparent 72%),
+    repeating-linear-gradient(135deg, rgb(255 215 0 / 4%) 0 1px, transparent 1px 16px),
+    repeating-linear-gradient(45deg, rgb(255 215 0 / 3%) 0 1px, transparent 1px 16px),
+    linear-gradient(180deg, #2c060b 0%, #1a0407 44%, #050102 100%);
+}
+
+.fg__stage {
+  position: relative;
+  gap: 0.6rem;
+}
+
+/* The pool of light a real machine stands in. */
+.fg__stage::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 100%;
+  max-width: 780px;
+  height: 540px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at 50% 38%, rgb(255 190 90 / 18%), transparent 66%);
+  pointer-events: none;
+}
+
+/* ---------- Cabinet ---------- */
+.fg-cabinet {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 560px);
+  padding: 0.9rem 1rem 0.7rem;
+  border: 3px solid transparent;
+  border-radius: 26px;
+  background:
+    radial-gradient(circle at 50% -16%, rgb(255 200 90 / 26%), transparent 58%) padding-box,
+    linear-gradient(180deg, #a81f2c 0%, #74111f 46%, #33060f 88%, #24040a 100%) padding-box,
+    linear-gradient(
+        158deg,
+        #fff6cf 0%,
+        #e8b53c 20%,
+        #8a5c12 44%,
+        #f0c24a 62%,
+        #fff0b8 82%,
+        #b8801f 100%
+      )
+      border-box;
+  box-shadow:
+    0 30px 70px rgb(0 0 0 / 72%),
+    0 0 60px rgb(240 194 74 / 20%),
+    inset 0 2px 0 rgb(255 240 200 / 34%),
+    inset 0 -20px 36px rgb(0 0 0 / 55%),
+    inset 0 0 0 1px rgb(255 220 140 / 16%);
+  transition: box-shadow 260ms ease;
+}
+
+.fg-cabinet--won {
+  box-shadow:
+    0 30px 70px rgb(0 0 0 / 72%),
+    0 0 56px rgb(240 194 74 / 55%),
+    0 0 120px rgb(255 190 90 / 34%),
+    inset 0 2px 0 rgb(255 240 200 / 42%),
+    inset 0 0 40px rgb(255 214 110 / 24%),
+    inset 0 -20px 36px rgb(0 0 0 / 55%);
+}
+
+/* Engraved filigree line. */
+.fg-cabinet::before {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  border: 1px solid rgb(255 226 150 / 28%);
+  border-radius: 19px;
+  box-shadow:
+    inset 0 0 26px rgb(0 0 0 / 40%),
+    inset 0 0 0 3px rgb(0 0 0 / 16%);
+  pointer-events: none;
+}
+
+.fg-cabinet__crest {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  font-size: 0.92rem;
+  font-weight: 900;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--fg-gold-pale);
+  text-shadow:
+    0 0 18px rgb(255 200 90 / 75%),
+    0 2px 3px rgb(0 0 0 / 85%);
+}
+
+.fg-cabinet__name {
+  padding-left: 0.3em;
+}
+
+.fg-lantern {
+  font-size: 1.2rem;
+  filter: drop-shadow(0 0 10px rgb(255 120 60 / 65%));
+  animation: fg-lantern-swing 3.8s ease-in-out infinite;
+}
+
+.fg-lantern--right {
+  animation-delay: -1.9s;
+}
+
+@keyframes fg-lantern-swing {
+  0%,
+  100% {
+    transform: rotate(-6deg);
+  }
+  50% {
+    transform: rotate(6deg);
+  }
+}
+
+/* ---------- Reel window ---------- */
+.fg-reels {
+  position: relative;
+  margin-top: 0.55rem;
+  padding: 0.62rem;
+  border: 3px solid transparent;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 50% -10%, rgb(255 200 90 / 16%), transparent 62%) padding-box,
+    linear-gradient(180deg, #160809 0%, #060203 100%) padding-box,
+    linear-gradient(
+        158deg,
+        #fff6cf 0%,
+        #e8b53c 22%,
+        #8a5c12 50%,
+        #f0c24a 72%,
+        #fff0b8 100%
+      )
+      border-box;
+  box-shadow:
+    0 10px 24px rgb(0 0 0 / 60%),
+    0 0 0 1px rgb(0 0 0 / 75%),
+    inset 0 0 22px rgb(255 215 0 / 34%),
+    inset 0 26px 46px rgb(0 0 0 / 80%),
+    inset 0 -14px 28px rgb(0 0 0 / 64%);
+  transition: box-shadow 260ms ease;
+}
+
+/* A paying board floods the window with gold. */
+.fg-cabinet--won .fg-reels {
+  box-shadow:
+    0 10px 24px rgb(0 0 0 / 60%),
+    0 0 30px rgb(240 194 74 / 30%),
+    inset 0 0 26px rgb(255 215 0 / 70%),
+    inset 0 24px 44px rgb(0 0 0 / 58%),
+    inset 0 -12px 26px rgb(0 0 0 / 42%);
+}
+
+.fg-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(var(--fg-cols, 4), minmax(0, 1fr));
+  gap: 0.42rem;
+}
+
+/* A deep pocket: shadowed lip at the top, floor falling away to black. */
+.fg-cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border: 1px solid rgb(255 226 150 / 16%);
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--fg-pocket-top) 0%, var(--fg-pocket-bottom) 100%);
+  box-shadow:
+    inset 0 10px 16px rgb(0 0 0 / 85%),
+    inset 0 -8px 14px rgb(0 0 0 / 60%),
+    inset 0 1px 0 rgb(255 226 150 / 10%),
+    0 1px 0 rgb(0 0 0 / 60%);
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+
+/* Oversized gems. `.fg-cell__symbol` is a grid box so the CSS coin (1em square)
+   centres exactly like an emoji; the clamp keeps four columns fitting a 320px
+   phone, and the upward cap stops a tall glyph clipping in its pocket. */
+.fg-cell__symbol,
+.fg-strip__face {
+  font-size: clamp(2.3rem, 14vw, 5.5rem);
+  line-height: 1;
+}
+
+.fg-cell__symbol {
+  display: grid;
+  place-items: center;
+  transform: scale(1.1);
+  filter:
+    drop-shadow(0 10px 10px rgb(0 0 0 / 80%))
+    drop-shadow(0 0 14px rgb(255 210 120 / 20%));
+  animation: fg-lock 340ms cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+@keyframes fg-lock {
+  from {
+    opacity: 0.3;
+    transform: translateY(-40%) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+/* Vertical strip that scrolls while the reel is still rolling.
+   Absolute on purpose: `height: 500%` then resolves against the pocket instead
+   of feeding back into it, so the strip is five pockets tall and every face is
+   exactly one pocket — the -80% loop stays seamless on any cell shape. */
+.fg-strip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 500%;
+}
+
+.fg-strip--spinning {
+  animation-name: fg-roll;
+  animation-timing-function: cubic-bezier(0.3, 0.1, 0.4, 1);
+  animation-iteration-count: infinite;
+}
+
+.fg-strip__face {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  height: 20%;
+}
+
+/* Five faces (4 + a repeat) loop seamlessly at -80%. */
+@keyframes fg-roll {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-80%);
+  }
+}
+
+/* Rolling: blurred, hot and stretched vertically — Boxing King's reel trick. */
+.fg-cell--rolling {
+  border-color: rgb(240 194 74 / 38%);
+  box-shadow:
+    inset 0 10px 16px rgb(0 0 0 / 82%),
+    inset 0 0 26px rgb(255 190 70 / 26%),
+    inset 0 0 8px rgb(255 215 0 / 28%);
+}
+
+.fg-cell--rolling .fg-strip {
+  filter: blur(1.6px) brightness(1.3) saturate(1.15);
+}
+
+.fg-cell--rolling .fg-strip__face {
+  transform: scaleY(1.45);
+}
+
+/* ---------- Cabinet curtains ----------
+   Same trick as the boxing ring's: a clipping wrapper of its own, because
+   `.fg-reels` must stay unclipped so winning cells can spill their glow, while
+   the curtains have to be cut off at the gold bezel as they sweep away. */
+.fg-curtains {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  overflow: hidden;
+  border-radius: 17px;
+  pointer-events: none;
+}
+
+/* Mandarin-red velvet: fine folds over broad ones, with a gold brocade lattice
+   woven through, so the fabric reads as heavy silk. */
+.fg-curtain {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 52%;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgb(0 0 0 / 38%) 0 3px,
+      rgb(255 255 255 / 6%) 3px 9px,
+      rgb(0 0 0 / 0%) 9px 27px
+    ),
+    repeating-linear-gradient(45deg, rgb(240 194 74 / 12%) 0 2px, transparent 2px 15px),
+    repeating-linear-gradient(90deg, #8c1a25 0 18px, #b3202e 18px 34px, #5e0f1a 34px 52px),
+    linear-gradient(180deg, #a01f2b, #3d060e);
+  transition: transform 1s ease-in-out;
+  will-change: transform;
+}
+
+/* Gold brocade trim down the leading edge. */
+.fg-curtain::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  background: linear-gradient(180deg, #fff0b8, #f0c24a 42%, #a9791a 72%, #6b4a08);
+  box-shadow:
+    0 0 14px rgb(255 214 110 / 65%),
+    inset 0 0 4px rgb(255 255 255 / 55%);
+  opacity: 0.92;
+}
+
+.fg-curtain--left {
+  left: 0;
+  transform-origin: left center;
+  box-shadow:
+    inset -34px 0 46px rgb(0 0 0 / 58%),
+    inset 18px 0 26px rgb(0 0 0 / 38%),
+    14px 0 30px rgb(0 0 0 / 48%);
+}
+
+.fg-curtain--left::after {
+  right: 0;
+}
+
+.fg-curtain--right {
+  right: 0;
+  transform-origin: right center;
+  box-shadow:
+    inset 34px 0 46px rgb(0 0 0 / 58%),
+    inset -18px 0 26px rgb(0 0 0 / 38%),
+    -14px 0 30px rgb(0 0 0 / 48%);
+}
+
+.fg-curtain--right::after {
+  left: 0;
+}
+
+/* Parted: each half sweeps off its own side and stops taking clicks. */
+.fg-curtain--open {
+  pointer-events: none;
+}
+
+.fg-curtain--open.fg-curtain--left {
+  transform: translateX(-100%);
+}
+
+.fg-curtain--open.fg-curtain--right {
+  transform: translateX(100%);
+}
+
+/* ---------- CSS gold coin ----------
+   A struck coin instead of an emoji: a bright gold disc, a bevelled rim and an
+   engraved yen, so it reads as a coin at 55px. 1em square, so it scales with
+   the reel's font-size. */
+.fg-coin {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 1em;
+  height: 1em;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse 48% 32% at 33% 17%, rgb(255 255 255 / 88%), transparent 72%),
+    radial-gradient(
+      circle at 32% 22%,
+      #fff6cc 0%,
+      #ffd75e 16%,
+      #f2b431 40%,
+      #cf8b16 66%,
+      #8a530a 88%,
+      #6b3d05 100%
+    );
+  box-shadow:
+    inset 0 -0.1em 0.16em rgb(60 30 0 / 70%),
+    inset 0 0.09em 0.13em rgb(255 250 215 / 85%),
+    0 0 0.16em rgb(255 176 56 / 75%),
+    0 0.04em 0.1em rgb(0 0 0 / 55%);
+}
+
+/* Bevelled rim. */
+.fg-coin::before {
+  content: '';
+  position: absolute;
+  inset: 0.09em;
+  border-radius: 50%;
+  border: 0.055em solid rgb(122 74 6 / 72%);
+  box-shadow:
+    inset 0 0.015em 0.04em rgb(255 244 190 / 90%),
+    0 0.01em 0.02em rgb(255 240 190 / 55%);
+}
+
+/* Engraved yen struck into the face. */
+.fg-coin::after {
+  content: '\00A5';
+  font-size: 0.54em;
+  font-weight: 900;
+  line-height: 1;
+  color: #6b3d05;
+  text-shadow:
+    0 0.02em 0 rgb(255 246 200 / 70%),
+    0 -0.012em 0 rgb(70 36 0 / 45%);
+}
+
+/* ---------- Winning cluster ---------- */
+.fg-cell--win {
+  z-index: 2;
+  border-color: rgb(255 245 205 / 98%);
+  background:
+    radial-gradient(circle at 50% 46%, rgb(255 226 140 / 62%), rgb(150 92 16 / 55%) 74%),
+    linear-gradient(180deg, #4a2a10 0%, #241206 100%);
+  box-shadow:
+    0 0 0 2px rgb(255 226 150 / 92%),
+    0 0 24px rgb(255 214 110 / 85%),
+    0 0 52px rgb(240 194 74 / 55%),
+    inset 0 0 28px rgb(255 226 150 / 55%);
+}
+
+/* Gold halo breathing behind the gem. */
+.fg-cell--win::before {
+  content: '';
+  position: absolute;
+  inset: 4%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(255 236 170 / 58%), transparent 68%);
+  animation: fg-halo 1.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* The gem floats up and pulses, lifted off the pocket floor. */
+.fg-cell--win .fg-cell__symbol {
+  position: relative;
+  z-index: 1;
+  filter:
+    drop-shadow(0 10px 10px rgb(0 0 0 / 80%))
+    drop-shadow(0 0 18px rgb(255 226 150 / 95%));
+  animation: fg-win-float 1.35s ease-in-out infinite;
+}
+
+@keyframes fg-win-float {
+  0%,
+  100% {
+    transform: translateY(0) scale(1.1);
+  }
+  50% {
+    transform: translateY(-7px) scale(1.18);
+  }
+}
+
+@keyframes fg-halo {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
+/* Golden starburst behind a paying board.
+   `inset: 0` (not a negative inset) keeps it inside the reel window: a bleed
+   would give the page a horizontal scrollbar on a phone. */
+.fg-sunburst {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgb(255 214 110 / 34%) 0deg 6deg,
+    transparent 6deg 17deg
+  );
+  border-radius: 18px;
+  -webkit-mask-image: radial-gradient(circle, #000 24%, transparent 72%);
+  mask-image: radial-gradient(circle, #000 24%, transparent 72%);
+  animation: fg-burst-spin 6s linear infinite, fg-burst-in 420ms ease-out both;
+}
+
+@keyframes fg-burst-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fg-burst-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Glass in front of the reels: a soft diagonal sheen. */
+.fg-reels::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: 17px;
+  background: linear-gradient(
+    160deg,
+    rgb(255 255 255 / 5%) 0%,
+    transparent 30%,
+    transparent 78%,
+    rgb(255 255 255 / 2%) 100%
+  );
+  pointer-events: none;
+}
+
+/* ---------- Particles ---------- */
+.fg-sparks {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.fg-sparks span {
+  position: absolute;
+  width: var(--spark-size, 6px);
+  height: var(--spark-size, 6px);
+  border-radius: 50%;
+  background: radial-gradient(circle, #fffdf0 0%, #ffd76a 52%, rgb(255 170 50 / 0%) 74%);
+  box-shadow:
+    0 0 14px rgb(255 210 110 / 95%),
+    0 0 26px rgb(255 170 50 / 55%);
+  animation: fg-spark 1.1s ease-out var(--spark-delay, 0s) both;
+}
+
+@keyframes fg-spark {
+  from {
+    opacity: 1;
+    transform: translate(0, 0) scale(0.4);
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translate(var(--spark-x, 0), var(--spark-y, 0)) scale(0);
+  }
+}
+
+.fg-cabinet__foot {
+  display: flex;
+  justify-content: center;
+  gap: 1.1rem;
+  margin-top: 0.5rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.24em;
+  color: rgb(255 226 150 / 55%);
+  text-shadow: 0 0 10px rgb(255 200 90 / 35%);
+}
+
+/* ---------- Status ---------- */
+.fg-result {
+  margin: 0;
+  min-height: 1.1rem;
+  text-align: center;
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+/* Nothing to report before the first spin — don't reserve a line for it. */
+.fg-result:empty {
+  display: none;
+}
+
+.fg-result--won {
+  color: var(--fg-gold);
+  font-weight: 700;
+  text-shadow: 0 0 16px rgb(240 194 74 / 55%);
+}
+
+.fg-result--lost {
+  color: #e2677d;
+}
+
+/* ---------- SPIN ---------- */
+.fg-spin {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  width: 100%;
+  min-height: 62px;
+  padding: 0.7rem 1rem;
+  overflow: hidden;
+  border: 0;
+  border-radius: 16px;
+  color: #2b1200;
+  font-weight: 900;
+  background: linear-gradient(180deg, #ffe08a 0%, #f0c24a 42%, #c8912a 100%);
+  box-shadow:
+    0 12px 28px rgb(0 0 0 / 45%),
+    0 0 0 1px rgb(255 226 150 / 55%),
+    0 0 30px rgb(240 194 74 / 22%),
+    inset 0 1px 0 rgb(255 255 255 / 65%);
+  transition: transform 120ms ease, filter 160ms ease, box-shadow 160ms ease;
+}
+
+.fg-spin__title {
+  font-size: 1.15rem;
+  letter-spacing: 0.22em;
+}
+
+.fg-spin__sub {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  opacity: 0.72;
+}
+
+.fg-spin:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.05);
+  box-shadow:
+    0 16px 34px rgb(0 0 0 / 50%),
+    0 0 26px rgb(240 194 74 / 45%),
+    inset 0 1px 0 rgb(255 255 255 / 70%);
+}
+
+.fg-spin:active:not(:disabled) {
+  transform: translateY(1px) scale(0.995);
+}
+
+.fg-spin:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.4) brightness(0.75);
+}
+
+.fg-spin:focus-visible {
+  outline: 2px solid #fff3c4;
+  outline-offset: 3px;
+}
+
+/* Light sweep on hover. */
+.fg-spin::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 45%) 45%, transparent 60%);
+  transform: translateX(-120%);
+}
+
+.fg-spin:hover:not(:disabled)::after {
+  animation: fg-sheen 900ms ease;
+}
+
+@keyframes fg-sheen {
+  to {
+    transform: translateX(120%);
+  }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 520px) {
+  .fg-cabinet {
+    padding: 0.75rem 0.7rem 0.6rem;
+    border-radius: 20px;
+  }
+
+  .fg-reels {
+    padding: 0.42rem;
+    border-radius: 16px;
+  }
+
+  .fg-grid {
+    gap: 0.28rem;
+  }
+
+  .fg-cell {
+    border-radius: 11px;
+  }
+
+  .fg-cabinet__crest {
+    font-size: 0.8rem;
+    gap: 0.55rem;
+  }
+
+  .fg-cabinet__foot {
+    gap: 0.8rem;
+  }
+
+  .fg-spin__title {
+    font-size: 1rem;
+  }
+}
+
+/* ---------- Full-screen phone layout ----------
+   With the paytable gone the panel is just chips + SPIN, so on a phone the
+   machine can own the viewport: the cabinet runs from the topbar down to the
+   dock, the reel window absorbs the leftover height, and the gems grow with the
+   screen width.
+   `svh` (not `vh`) so the frame ignores the mobile URL bar; the dock keeps its
+   own `--bet-dock-h` budget, which is far smaller now that it only holds the
+   bet controls and one button. */
+@media (max-width: 767px) {
+  .rt.fg {
+    --bet-dock-h: min(24svh, 176px);
+
+    height: 100svh;
+    min-height: 100svh;
+    overflow: hidden;
+  }
+
+  /* Reserve exactly what the dock occupies, so the machine sits flush on it. */
+  .rt.fg .rt__panel {
+    min-height: var(--bet-dock-h);
+  }
+
+  .fg .rt__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-height: 0;
+    padding: 0 0 calc(var(--bet-dock-h) + 0.35rem);
+  }
+
+  .fg__stage {
+    flex: 1 1 auto;
+    min-height: 0;
+    gap: 0;
+  }
+
+  /* Edge to edge, and tall enough to fill the frame. */
+  .fg-cabinet {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    width: 100%;
+    min-height: 0;
+    padding: 0.35rem 0.4rem 0.3rem;
+    border-width: 2px 0 3px;
+    border-radius: 0;
+  }
+
+  /* Phone chrome that only costs height. */
+  .fg-cabinet::before,
+  .fg-cabinet__foot,
+  .fg-result {
+    display: none;
+  }
+
+  .fg-reels {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 0;
+    margin-top: 0.3rem;
+    padding: 0.3rem;
+    border-radius: 14px;
+  }
+
+  /* Four columns of slightly tall pockets: fills the width, hugs the frame, and
+     keeps the gems round instead of smearing them down a full-height cell. */
+  .fg-grid {
+    flex: 0 1 auto;
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+    gap: 0.26rem;
+    aspect-ratio: 4 / 4.2;
+    max-height: 100%;
+  }
+
+  .fg-cell {
+    aspect-ratio: auto;
+  }
+
+  /* Width is the binding constraint in a four-wide grid. */
+  .fg-cell__symbol,
+  .fg-strip__face {
+    font-size: min(17vw, 5.5rem);
+  }
+}
+
+/* Landscape phones and the on-screen keyboard: the dock un-pins itself into the
+   flow, so drop the fixed-height frame, go back to the roomy desktop cabinet and
+   let the page scroll again. */
+@media (max-width: 767px) and (max-height: 460px) {
+  .rt.fg {
+    height: auto;
+    min-height: 100svh;
+    overflow: visible;
+  }
+
+  .rt.fg .rt__panel {
+    min-height: 0;
+  }
+
+  .fg .rt__body {
+    padding-bottom: 0.85rem;
+  }
+
+  .fg-cabinet,
+  .fg-reels {
+    flex: 0 0 auto;
+  }
+
+  .fg-cabinet {
+    width: min(100%, 560px);
+    margin: 0 auto;
+    padding: 0.75rem 0.7rem 0.6rem;
+    border-width: 3px;
+    border-radius: 20px;
+  }
+
+  .fg-cabinet__foot,
+  .fg-result {
+    display: block;
+  }
+
+  /* Square pockets again: the screen is wide, not tall. */
+  .fg-grid {
+    aspect-ratio: auto;
+    max-height: none;
+    grid-template-rows: none;
+  }
+
+  .fg-cell {
+    aspect-ratio: 1 / 1;
+  }
+
+  .fg-cell__symbol,
+  .fg-strip__face {
+    font-size: clamp(2.3rem, 9vw, 4.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fg-lantern,
+  .fg-cell--win::before,
+  .fg-sunburst,
+  .fg-strip--spinning,
+  .fg-cell__symbol,
+  .fg-cell--win .fg-cell__symbol {
+    animation: none;
+  }
+
+  .fg-sparks span {
+    animation-duration: 1ms;
+  }
+
+  /* The curtains still have to get out of the way — just without the sweep. */
+  .fg-curtain {
+    transition: none;
+  }
+
+  .fg-spin:hover:not(:disabled)::after {
+    animation: none;
+  }
+}
+
+/* ==========================================================================
+   GameShell — the frame shared by every game page
+   --------------------------------------------------------------------------
+   Fixed top bar (lobby + balance), the board filling the middle, and a fixed
+   bottom bar with four quick-bet chips around one burning action button.
+   `--gs-bar-h` is the bar's own height (plus the safe area), and the board's
+   padding reserves exactly that much so nothing hides behind it.
+   ========================================================================== */
+.gs {
+  --gs-bar-h: calc(120px + env(safe-area-inset-bottom, 0px));
+  --gs-top-h: 54px;
+
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgb(240 194 74 / 10%), transparent 70%),
+    radial-gradient(ellipse 70% 40% at 50% 110%, rgb(214 68 60 / 12%), transparent 70%),
+    linear-gradient(180deg, #0b0e15 0%, #070a10 45%, #04060a 100%);
+}
+
+/* A page with game-specific controls needs a taller bar. */
+.gs--wide-bar {
+  --gs-bar-h: calc(186px + env(safe-area-inset-bottom, 0px));
+}
+
+/* ---------- Top bar ---------- */
+.gs__top {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 101;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: var(--gs-top-h);
+  padding: 0.5rem 0.7rem;
+  background: rgb(8 11 17 / 92%);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgb(240 194 74 / 20%);
+}
+
+.gs__back {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.42rem 0.7rem;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 4%);
+  color: var(--text);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.gs__back:hover {
+  border-color: rgb(240 194 74 / 45%);
+  background: rgb(240 194 74 / 10%);
+}
+
+.gs__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Gold balance pill. */
+.gs__balance {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffe9a8 0%, #f0c24a 55%, #d9a02a 100%);
+  box-shadow:
+    0 4px 14px rgb(0 0 0 / 45%),
+    0 0 18px rgb(240 194 74 / 30%),
+    inset 0 1px 0 rgb(255 255 255 / 70%);
+  color: #3a1d00;
+  font-size: 0.8rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.gs__balance--error {
+  background: linear-gradient(180deg, #ffc9c9, #e05555);
+  color: #2b0000;
+}
+
+/* ---------- Board area ---------- */
+.gs__main {
+  display: grid;
+  flex: 1 1 auto;
+  place-items: center;
+  min-height: 0;
+  padding: calc(var(--gs-top-h) + 0.5rem) 0.6rem calc(var(--gs-bar-h) + 0.5rem);
+}
+
+.gs__main > * {
+  max-width: 100%;
+}
+
+/* ---------- Bottom bar ---------- */
+.gs__bar {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 100;
+  width: 100%;
+  padding: 0.5rem 0.7rem calc(0.6rem + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid rgb(240 194 74 / 32%);
+  background: linear-gradient(180deg, #10141d 0%, #06080d 100%);
+  box-shadow:
+    0 -18px 44px rgb(0 0 0 / 70%),
+    inset 0 1px 0 rgb(255 226 150 / 18%);
+}
+
+/* Game-specific controls: one scrolling strip, so the bar keeps its height. */
+.gs__controls {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  padding-bottom: 0.45rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.gs__controls::-webkit-scrollbar {
+  display: none;
+}
+
+.gs__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  max-width: 540px;
+  margin: 0 auto;
+}
+
+.gs__chips {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* ---------- Quick-bet chips ---------- */
+.gs-chip {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  padding: 0;
+  border: 2px solid rgb(240 194 74 / 28%);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 24%, rgb(255 255 255 / 16%), transparent 48%),
+    radial-gradient(circle at 50% 50%, #2b2114 0%, #130e07 72%);
+  box-shadow:
+    0 6px 14px rgb(0 0 0 / 55%),
+    inset 0 1px 0 rgb(255 226 150 / 22%);
+  color: #f3dfb2;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  transition:
+    transform 140ms ease,
+    box-shadow 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.gs-chip:hover:not(:disabled) {
+  border-color: rgb(240 194 74 / 60%);
+  transform: translateY(-2px);
+}
+
+.gs-chip:active:not(:disabled) {
+  transform: translateY(1px) scale(0.97);
+}
+
+.gs-chip:disabled {
+  opacity: 0.5;
+}
+
+.gs-chip:focus-visible {
+  outline: 2px solid #fff3c4;
+  outline-offset: 3px;
+}
+
+/* The chosen stake glows gold. */
+.gs-chip--active {
+  border-color: #ffd76a;
+  background: radial-gradient(circle at 34% 24%, #fff6cf 0%, #f0c24a 52%, #c8912a 100%);
+  box-shadow:
+    0 0 0 2px rgb(255 215 106 / 30%),
+    0 0 20px rgb(255 180 60 / 62%),
+    inset 0 1px 0 rgb(255 255 255 / 70%);
+  color: #2b1200;
+}
+
+/* ---------- The burning action button ---------- */
+.gs__action {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-content: center;
+  place-items: center;
+  gap: 0.05rem;
+  width: 96px;
+  height: 96px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 26%,
+    #fff6c2 0%,
+    #ffcb52 30%,
+    #ff8a1f 62%,
+    #e0400a 88%,
+    #8f1f02 100%
+  );
+  color: #2b0d00;
+  font-weight: 900;
+  text-transform: uppercase;
+  animation: fire-pulse 1.9s ease-in-out infinite;
+  isolation: isolate;
+  transition: filter 160ms ease, transform 90ms ease;
+}
+
+/* Outer halo, licking like a real flame. */
+.gs__action::before {
+  content: '';
+  position: absolute;
+  inset: -16%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(255 120 20 / 48%) 0%, rgb(255 40 0 / 0%) 68%);
+  filter: blur(9px);
+  animation: fire-lick 1.6s ease-in-out infinite alternate-reverse;
+  pointer-events: none;
+}
+
+/* Hot core. */
+.gs__action-flame {
+  position: absolute;
+  inset: 5%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 64%,
+    rgb(255 246 190 / 85%) 0%,
+    rgb(255 176 46 / 55%) 40%,
+    rgb(255 60 0 / 0%) 72%
+  );
+  filter: blur(3px);
+  opacity: 0.9;
+  animation: fire-lick 1.1s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.gs__action-label {
+  position: relative;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  line-height: 1;
+}
+
+.gs__action-bet {
+  position: relative;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  opacity: 0.78;
+}
+
+.gs__action:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.gs__action:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.gs__action:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.35) brightness(0.82);
+}
+
+.gs__action--busy {
+  animation-duration: 3.4s;
+}
+
+.gs__action:focus-visible {
+  outline: 2px solid #fff3c4;
+  outline-offset: 4px;
+}
+
+/* Red → orange → yellow, never resting. */
+@keyframes fire-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 3px rgb(255 214 110 / 40%),
+      0 0 20px 4px rgb(255 96 16 / 55%),
+      0 0 44px 12px rgb(255 40 0 / 28%),
+      inset 0 -8px 16px rgb(120 20 0 / 55%);
+  }
+  33% {
+    box-shadow:
+      0 0 0 3px rgb(255 246 190 / 55%),
+      0 0 30px 9px rgb(255 150 30 / 70%),
+      0 0 66px 22px rgb(255 70 0 / 40%),
+      inset 0 -8px 16px rgb(120 20 0 / 55%);
+  }
+  66% {
+    box-shadow:
+      0 0 0 3px rgb(255 200 110 / 45%),
+      0 0 24px 6px rgb(255 60 10 / 62%),
+      0 0 56px 16px rgb(255 120 0 / 34%),
+      inset 0 -8px 16px rgb(120 20 0 / 55%);
+  }
+}
+
+@keyframes fire-lick {
+  from {
+    opacity: 0.68;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.07);
+  }
+}
+
+/* ---------- Small / short screens ---------- */
+@media (max-width: 359px) {
+  .gs {
+    --gs-bar-h: calc(112px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .gs-chip {
+    width: 48px;
+    height: 48px;
+    font-size: 0.64rem;
+  }
+
+  .gs__action {
+    width: 88px;
+    height: 88px;
+  }
+
+  .gs__action-label {
+    font-size: 0.85rem;
+  }
+}
+
+/* Landscape phones: a shorter bar, or the board vanishes. */
+@media (max-height: 460px) {
+  .gs {
+    --gs-bar-h: calc(96px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .gs--wide-bar {
+    --gs-bar-h: calc(150px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .gs__action {
+    width: 76px;
+    height: 76px;
+  }
+
+  .gs-chip {
+    width: 44px;
+    height: 44px;
+    font-size: 0.6rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gs__action,
+  .gs__action::before,
+  .gs__action-flame {
+    animation: none;
+  }
+
+  .gs__action {
+    box-shadow:
+      0 0 0 3px rgb(255 214 110 / 45%),
+      0 0 26px 8px rgb(255 120 20 / 55%),
+      0 0 52px 16px rgb(255 50 0 / 30%),
+      inset 0 -8px 16px rgb(120 20 0 / 55%);
+  }
+}

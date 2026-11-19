@@ -1,11 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-
+﻿import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, DiceConfig, DicePrediction, DiceResult } from '../api/types';
-import { ArrowLeftIcon, WalletIcon } from '../components/Icons';
-import { LivePlayerBadge } from '../components/LivePlayerBadge';
-import { SoundToggle } from '../components/SoundToggle';
+import { GameShell } from '../components/GameShell';
 import { playSound } from '../utils/sound';
 
 /**
@@ -180,7 +176,6 @@ export default function Dice() {
     }
   }
 
-  const balanceLabel = balance === null ? '···' : money(balance);
   const stake = Number(amount) || 0;
   const previewStake = stake > 0 ? stake : DEFAULT_BET;
   const winPayout = previewStake * table.multiplier;
@@ -188,30 +183,21 @@ export default function Dice() {
   // Marker position across the 1–100 track (roll 1 → 0%, roll 100 → 100%).
   const markerPct = Math.min(100, Math.max(0, ((display - table.min) / table.faces) * 100));
 
+  const gameProps = {
+    balance,
+    onBack: () => {
+      // Dice has no other back destination.
+    },
+    betAmount: previewStake,
+    setBetAmount: (amount: number) => setAmount(String(amount)),
+    onSpin: () => void roll(call ?? 'high'),
+    spinLabel: 'ROLL',
+    isSpinning: isRolling,
+  };
+
   return (
-    <div className="rt">
-      <header className="rt__topbar">
-        <Link to="/" className="rt__back">
-          <ArrowLeftIcon className="icon icon--sm" />
-          Back to Lobby
-        </Link>
-
-        <h1 className="rt__title">Dice</h1>
-
-        <SoundToggle />
-
-        <LivePlayerBadge baseCount={3100} />
-
-        <span
-          className={`balance-pill${balanceError ? ' balance-pill--error' : ''}`}
-          title={balanceError ?? 'Current balance'}
-        >
-          <WalletIcon className="icon icon--sm" />
-          {balanceLabel}
-        </span>
-      </header>
-
-      <main className="rt__body">
+    <GameShell {...gameProps}>
+      <section className="rt__stage">
         <section className="rt__stage">
           <div
             className={`dice-table${isRolling ? ' dice-table--rolling' : ''}${
@@ -375,8 +361,8 @@ export default function Dice() {
           </p>
         </aside>
 
-      </main>
-    </div>
+      </section>
+    </GameShell>
   );
 }
 

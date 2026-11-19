@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-
+import { GameShell } from '../components/GameShell';
 import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, SlotsConfig, SlotsResult } from '../api/types';
-import { ArrowLeftIcon, WalletIcon } from '../components/Icons';
-import { LivePlayerBadge } from '../components/LivePlayerBadge';
-import { SoundToggle } from '../components/SoundToggle';
 import { playSound } from '../utils/sound';
 
 /**
@@ -26,7 +22,6 @@ const CHIPS = [1, 5, 10, 50, 100];
 const DEFAULT_BET = 10;
 /** Used only if the config request fails — mirrors the backend table. */
 const FALLBACK_SYMBOLS = ['🍒', '🍋', '🍇', '⭐', '💎', '7️⃣'];
-const FALLBACK_PAYTABLE = { lineMultiplier: 8.4, lines: 3 };
 const LINE_NAMES = ['Top', 'Middle', 'Bottom'];
 
 /** Staggered stop: column by column, and slightly top → bottom. */
@@ -76,7 +71,6 @@ export default function Slots() {
   const [amount, setAmount] = useState(String(DEFAULT_BET));
   const [config, setConfig] = useState<SlotsConfig | null>(null);
   const symbols = config?.symbols ?? FALLBACK_SYMBOLS;
-  const paytable = config?.paytable ?? FALLBACK_PAYTABLE;
 
   // `null` = that reel is still rolling.
   const [cells, setCells] = useState<(string | null)[]>(FALLBACK_GRID);
@@ -84,7 +78,7 @@ export default function Slots() {
   const [isSpinning, setIsSpinning] = useState(false);
   const [result, setResult] = useState<SlotsResult | null>(null);
   const [showCard, setShowCard] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
 
   const refreshBalance = useCallback(async () => {
     try {
@@ -199,10 +193,8 @@ export default function Slots() {
     }
   }
 
-  const balanceLabel = balance === null ? '···' : money(balance);
   const stake = Number(amount) || 0;
   const previewStake = stake > 0 ? stake : DEFAULT_BET;
-  const topPayout = previewStake * paytable.lines * paytable.lineMultiplier;
 
   const headline = !result
     ? ''
@@ -220,33 +212,58 @@ export default function Slots() {
           result.winningLines.length > 1 ? 'lines' : 'line'
         } · ${result.lineMultiplier}× each = ${result.multiplier}× your bet`;
 
+  const gameProps = {
+    balance,
+    onBack: () => {
+      // Slots has no other back destination.
+    },
+    betAmount: previewStake,
+    setBetAmount: (amount: number) => setAmount(String(amount)),
+    onSpin: () => void handleSpin(),
+    spinLabel: 'SPIN',
+    isSpinning,
+  };
+
   return (
-    <div className="rt">
-      <header className="rt__topbar">
-        <Link to="/" className="rt__back">
-          <ArrowLeftIcon className="icon icon--sm" />
-          Back to Lobby
-        </Link>
-
-        <h1 className="rt__title">Lucky Slots</h1>
-
-        <SoundToggle />
-
-        <LivePlayerBadge baseCount={2900} />
-
-        <span
-          className={`balance-pill${balanceError ? ' balance-pill--error' : ''}`}
-          title={balanceError ?? 'Current balance'}
-        >
-          <WalletIcon className="icon icon--sm" />
-          {balanceLabel}
-        </span>
-      </header>
-
-      <main className="rt__body">
-        <section className="rt__stage">
-          <div className={`cabinet${isSpinning ? ' cabinet--spinning' : ''}`}>
-            <div className="cabinet__glow" aria-hidden="true" />
+    <GameShell {...gameProps}
+      controls={
+        <>
+          <div className="panel-block">
+            <div className="panel-label">
+              Bet amount
+              <span className="panel-value">{money(previewStake)}</span>
+            </div>
+            <div className="chips">
+              {CHIPS.map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  className={`chip${stake === chip ? ' chip--active' : ''}`}
+                  onClick={() => setAmount(String(chip))}
+                  disabled={isSpinning}
+                  aria-pressed={stake === chip}
+                >
+                  ${chip}
+                </button>
+              ))}
+              <input
+                className="chips__custom"
+                type="number"
+                value={amount}
+                onChange={(event) => setAmount(event.target.value)}
+                min={0.5}
+                step={0.5}
+                disabled={isSpinning}
+                aria-label="Custom bet amount"
+              />
+            </div>
+          </div>
+        </>
+      }
+    >
+      <section className="rt__stage">
+        <div className={`cabinet${isSpinning ? ' cabinet--spinning' : ''}`}>
+          <div className="cabinet__glow" aria-hidden="true" />
 
             <div
               className="cabinet__grid"
@@ -323,82 +340,7 @@ export default function Slots() {
           <p className="rt__fair">Provably fair · seed hash published before every spin</p>
           {balanceError && <p className="error">{balanceError}</p>}
         </section>
-
-        <aside className="rt__panel">
-          <div className="panel-block">
-            <div className="panel-label">
-              Bet amount
-              <span className="panel-value">{money(previewStake)}</span>
-            </div>
-            <div className="chips">
-              {CHIPS.map((chip) => (
-                <button
-                  key={chip}
-                  type="button"
-                  className={`chip${stake === chip ? ' chip--active' : ''}`}
-                  onClick={() => setAmount(String(chip))}
-                  disabled={isSpinning}
-                  aria-pressed={stake === chip}
-                >
-                  ${chip}
-                </button>
-              ))}
-              <input
-                className="chips__custom"
-                type="number"
-                value={amount}
-                onChange={(event) => setAmount(event.target.value)}
-                min={0.5}
-                step={0.5}
-                disabled={isSpinning}
-                aria-label="Custom bet amount"
-              />
-            </div>
-            <p className="rt__meta rt__meta--left">
-              One bet covers all 3 lines · change it and the paytable updates.
-            </p>
-          </div>
-
-          <div className="panel-block">
-            <div className="panel-label">
-              Paytable
-              <span className="panel-value">{paytable.lineMultiplier}× per line</span>
-            </div>
-            <div className="payout">
-              <span className="payout__amount payout__amount--gold">
-                <span className="payout__label">3 in a row</span>
-                {money(previewStake * paytable.lineMultiplier)}
-              </span>
-              <span className="payout__amount payout__amount--blue">
-                <span className="payout__label">All 3 lines</span>
-                {money(topPayout)}
-              </span>
-            </div>
-            <p className="rt__meta rt__meta--left">
-              Three matching symbols on any row pays {paytable.lineMultiplier}× your bet.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            className={`spin${isSpinning ? ' spin--busy' : ''}`}
-            onClick={() => void handleSpin()}
-            disabled={isSpinning}
-          >
-            {isSpinning ? 'SPINNING…' : 'SPIN'}
-          </button>
-
-          {error && <p className="error">{error}</p>}
-
-          <p className="rt__meta">
-            {result
-              ? `Round ${result.roundId.slice(0, 8)} · seed ${result.serverSeedHash.slice(0, 12)}…`
-              : 'The server publishes a seed hash before every round'}
-          </p>
-        </aside>
-
-      </main>
-    </div>
+      </GameShell>
   );
 }
 

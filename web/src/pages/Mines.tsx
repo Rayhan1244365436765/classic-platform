@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-
 import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, MinesCashout, MinesReveal, MinesStart } from '../api/types';
-import { ArrowLeftIcon, WalletIcon } from '../components/Icons';
-import { LivePlayerBadge } from '../components/LivePlayerBadge';
-import { SoundToggle } from '../components/SoundToggle';
+import { GameShell } from '../components/GameShell';
 import { playSound } from '../utils/sound';
 
 /**
@@ -16,7 +12,6 @@ import { playSound } from '../utils/sound';
  * over — the mine positions so every bomb can be shown).
  */
 
-const CHIPS = [1, 5, 10, 50, 100];
 const DEFAULT_BET = 10;
 const GRID_SIZE = 25;
 const MIN_MINES = 1;
@@ -237,7 +232,6 @@ export default function Mines() {
     }
   }
 
-  const balanceLabel = balance === null ? '···' : money(balance);
   const stake = Number(amount) || 0;
   const previewStake = stake > 0 ? stake : DEFAULT_BET;
   const active = status === 'active';
@@ -245,7 +239,6 @@ export default function Mines() {
   const revealedSet = new Set(revealed);
   const mineSet = new Set(mines);
   const cashoutValue = previewStake * multiplier;
-  const currentStake = status === 'idle' ? previewStake : stake;
 
   /** A tile is face-up when it was opened, or when the board is settled. */
   function tileFace(index: number): { open: boolean; glyph: string; kind: string } {
@@ -267,204 +260,97 @@ export default function Mines() {
     return { open: false, glyph: '', kind: 'hidden' };
   }
 
+  const canCashout = active && !busy && revealed.length > 0;
+  const actionLabel = active ? (canCashout ? 'CASH OUT' : 'PICK TILE') : busy ? 'STARTING…' : 'START';
+  const actionDisabled = active ? !canCashout : busy;
+
   return (
-    <div className="rt">
-      <header className="rt__topbar">
-        <Link to="/" className="rt__back">
-          <ArrowLeftIcon className="icon icon--sm" />
-          Back to Lobby
-        </Link>
+    <GameShell
+      balance={balance}
+      balanceError={balanceError}
+      onBack={() => window.history.back()}
+      betAmount={previewStake}
+      setBetAmount={(value) => setAmount(String(value))}
+      onSpin={() => {
+        if (active) void cashout();
+        else void startGame();
+      }}
+      spinLabel={actionLabel}
+      isSpinning={busy}
+      disabled={actionDisabled}
+      controls={
+        <div className="chips" style={{ flexWrap: 'nowrap' }}>
+          <span className="panel-label" style={{ marginRight: 8 }}>Mines</span>
+          {MINE_PRESETS.map((preset) => (
+            <button
+              key={preset}
+              type="button"
+              className={`chip${minesCount === preset ? ' chip--active' : ''}`}
+              onClick={() => setMinesCount(preset)}
+              disabled={active || busy}
+              aria-pressed={minesCount === preset}
+            >
+              {preset}
+            </button>
+          ))}
+        </div>
+      }
+    >
+      <section className="rt__stage">
+        <div className={`mines${active ? ' mines--active' : ''}`}>
+          <div className="mines__grid" role="grid" aria-label="Mines board">
+            {Array.from({ length: GRID_SIZE }, (_, index) => {
+              const face = tileFace(index);
+              const disabled = !active || busy || face.open;
 
-        <h1 className="rt__title">Mines</h1>
-
-        <SoundToggle />
-
-        <LivePlayerBadge baseCount={2700} />
-
-        <span
-          className={`balance-pill${balanceError ? ' balance-pill--error' : ''}`}
-          title={balanceError ?? 'Current balance'}
-        >
-          <WalletIcon className="icon icon--sm" />
-          {balanceLabel}
-        </span>
-      </header>
-
-      <main className="rt__body rt__body--controls-left">
-        <aside className="rt__panel">
-          <div className="panel-block">
-            <div className="panel-label">
-              Bet amount
-              <span className="panel-value">{money(currentStake)}</span>
-            </div>
-            <div className="chips">
-              {CHIPS.map((chip) => (
+              return (
                 <button
-                  key={chip}
+                  key={index}
                   type="button"
-                  className={`chip${stake === chip ? ' chip--active' : ''}`}
-                  onClick={() => setAmount(String(chip))}
-                  disabled={active || busy}
-                  aria-pressed={stake === chip}
+                  role="gridcell"
+                  className={`mines-tile${face.open ? ` mines-tile--open mines-tile--${face.kind}` : ''}`}
+                  onClick={() => void revealTile(index)}
+                  disabled={disabled}
+                  aria-label={face.open ? `Tile ${index + 1}: ${face.kind}` : `Open tile ${index + 1}`}
                 >
-                  ${chip}
+                  <span className="mines-tile__inner">
+                    <span className="mines-tile__face mines-tile__face--front" aria-hidden="true" />
+                    <span className="mines-tile__face mines-tile__face--back" aria-hidden="true">
+                      {face.glyph}
+                    </span>
+                  </span>
                 </button>
-              ))}
-              <input
-                className="chips__custom"
-                type="number"
-                value={amount}
-                onChange={(event) => setAmount(event.target.value)}
-                min={0.5}
-                step={0.5}
-                disabled={active || busy}
-                aria-label="Custom bet amount"
-              />
-            </div>
+              );
+            })}
           </div>
+        </div>
 
-          <div className="panel-block">
-            <div className="panel-label">
-              Mines
-              <span className="panel-value">{minesCount}</span>
-            </div>
-            <div className="chips">
-              {MINE_PRESETS.map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  className={`chip${minesCount === preset ? ' chip--active' : ''}`}
-                  onClick={() => setMinesCount(preset)}
-                  disabled={active || busy}
-                  aria-pressed={minesCount === preset}
-                >
-                  {preset}
-                </button>
-              ))}
-              <input
-                className="chips__custom"
-                type="number"
-                value={minesCount}
-                onChange={(event) => setMinesCount(Number(event.target.value))}
-                min={MIN_MINES}
-                max={MAX_MINES}
-                step={1}
-                disabled={active || busy}
-                aria-label="Number of mines"
-              />
-            </div>
-            <p className="rt__meta rt__meta--left">
-              {GRID_SIZE - minesCount} safe tiles · more mines, bigger multipliers.
+        {settled && (
+          <div
+            className={`mines-result${status === 'won' ? ' mines-result--win' : ' mines-result--lose'}`}
+            role="status"
+            aria-live="polite"
+          >
+            <p className="mines-result__headline">{status === 'won' ? 'Cashed out!' : 'BOOM!'}</p>
+            <p className="mines-result__amount">
+              {status === 'won' ? `+${money(payout)}` : `-${money(stake)}`}
+            </p>
+            <p className="mines-result__caption">
+              {status === 'won'
+                ? `${revealed.length} gems at ${multiplier.toFixed(2)}× your bet`
+                : `You hit a mine after ${revealed.length} gem${revealed.length === 1 ? '' : 's'}`}
             </p>
           </div>
+        )}
 
-          <div className="panel-block">
-            <div className="panel-label">
-              Multiplier
-              <span className="panel-value">{multiplier.toFixed(2)}×</span>
-            </div>
-            <div className="payout">
-              <span className="payout__amount payout__amount--gold">
-                <span className="payout__label">Cash out</span>
-                {money(active ? cashoutValue : payout)}
-              </span>
-              <span className="payout__amount payout__amount--gray">
-                <span className="payout__label">Gems</span>
-                {revealed.length}/{GRID_SIZE - minesCount}
-              </span>
-            </div>
-          </div>
-
-          {active ? (
-            <button
-              type="button"
-              className="aviator-action aviator-action--cashout"
-              onClick={() => void cashout()}
-              disabled={busy || revealed.length === 0}
-            >
-              <span className="aviator-action__title">
-                {revealed.length === 0 ? 'OPEN A TILE FIRST' : `CASH OUT ${money(cashoutValue)}`}
-              </span>
-              <span className="aviator-action__sub">{multiplier.toFixed(2)}×</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="aviator-action"
-              onClick={() => void startGame()}
-              disabled={busy}
-            >
-              <span className="aviator-action__title">{busy ? 'STARTING…' : 'START GAME'}</span>
-              <span className="aviator-action__sub">{money(previewStake)}</span>
-            </button>
-          )}
-
-          {error && <p className="error">{error}</p>}
-
-          <p className="rt__meta">
-            Provably fair shuffle · the mine layout never leaves the server until the game ends
-          </p>
-        </aside>
-
-        <section className="rt__stage">
-          <div className={`mines${active ? ' mines--active' : ''}`}>
-            <div className="mines__grid" role="grid" aria-label="Mines board">
-              {Array.from({ length: GRID_SIZE }, (_, index) => {
-                const face = tileFace(index);
-                const disabled = !active || busy || face.open;
-
-                return (
-                  <button
-                    key={index}
-                    type="button"
-                    role="gridcell"
-                    className={`mines-tile${face.open ? ` mines-tile--open mines-tile--${face.kind}` : ''}`}
-                    onClick={() => void revealTile(index)}
-                    disabled={disabled}
-                    aria-label={
-                      face.open ? `Tile ${index + 1}: ${face.kind}` : `Open tile ${index + 1}`
-                    }
-                  >
-                    <span className="mines-tile__inner">
-                      <span className="mines-tile__face mines-tile__face--front" aria-hidden="true" />
-                      <span className="mines-tile__face mines-tile__face--back" aria-hidden="true">
-                        {face.glyph}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {settled && (
-            <div
-              className={`mines-result${status === 'won' ? ' mines-result--win' : ' mines-result--lose'}`}
-              role="status"
-              aria-live="polite"
-            >
-              <p className="mines-result__headline">{status === 'won' ? 'Cashed out!' : 'BOOM!'}</p>
-              <p className="mines-result__amount">
-                {status === 'won' ? `+${money(payout)}` : `-${money(stake)}`}
-              </p>
-              <p className="mines-result__caption">
-                {status === 'won'
-                  ? `${revealed.length} gems at ${multiplier.toFixed(2)}× your bet`
-                  : `You hit a mine after ${revealed.length} gem${revealed.length === 1 ? '' : 's'}`}
-              </p>
-            </div>
-          )}
-
-          <p className="rt__fair">
-            {active
-              ? 'Click any tile — cash out before you hit a mine'
-              : 'Pick your bet and mines, then start a board'}
-          </p>
-          {balanceError && <p className="error">{balanceError}</p>}
-        </section>
-
-      </main>
-    </div>
+        <p className="rt__fair">
+          {active
+            ? `Gems ${revealed.length}/${GRID_SIZE - minesCount} · ${multiplier.toFixed(2)}× · ${money(cashoutValue)}`
+            : `${GRID_SIZE - minesCount} safe tiles · pick mines and start`}
+        </p>
+        {error && <p className="error">{error}</p>}
+      </section>
+    </GameShell>
   );
 }
 
