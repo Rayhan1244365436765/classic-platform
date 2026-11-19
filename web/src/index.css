@@ -2895,90 +2895,22 @@ button:not(:disabled):hover {
   letter-spacing: 0.04em;
 }
 
-/* ---------- Recent results ---------- */
-.history {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  min-height: 30px;
-}
-
-.history__label {
-  font-size: 0.62rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.history__empty {
-  font-size: 0.72rem;
-  color: var(--muted);
-  opacity: 0.8;
-}
-
-.dot {
-  display: grid;
-  place-items: center;
-  width: 27px;
-  height: 27px;
-  border-radius: 50%;
-  border: 2px solid rgb(255 255 255 / 22%);
-  color: #fff;
-  font-size: 0.68rem;
-  font-weight: 800;
-  box-shadow: 0 4px 10px rgb(0 0 0 / 45%);
-}
-
-.dot--red {
-  background: linear-gradient(180deg, #cf2a2a, #8e1b1b);
-}
-
-.dot--black {
-  background: linear-gradient(180deg, #1c232f, #0c1017);
-}
-
-.dot--green {
-  background: linear-gradient(180deg, #22c55e, #14532d);
-}
-
-.dot--blue {
-  background: linear-gradient(180deg, #3b82f6, #1e3a8a);
-}
-
-.dot--gray {
-  background: linear-gradient(180deg, #2b3444, #10151e);
-  color: #9fb0c7;
-}
-
-.dot--gold {
-  background: linear-gradient(180deg, #f7d64a, #a97c12);
-  color: #241a04;
-}
-
-/* History entries are pills so amounts like "$100" fit. */
-.history .dot {
-  width: auto;
-  min-width: 40px;
-  height: 26px;
-  padding: 0 0.5rem;
-  border-radius: 999px;
-  font-size: 0.66rem;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.01em;
-}
-
 /* ---------- Wheel ---------- */
 .wheel-wrap {
   position: relative;
-  display: grid;
-  place-items: center;
-  padding-top: 16px;
+  width: 100%;
+  max-width: 400px;
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
 }
 
 .wheel-pointer {
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  transform: translateX(-50%);
   width: 0;
   height: 0;
-  margin-bottom: -8px;
   border-left: 11px solid transparent;
   border-right: 11px solid transparent;
   border-top: 20px solid var(--accent);
@@ -2987,10 +2919,8 @@ button:not(:disabled):hover {
 }
 
 .wheel {
-  position: relative;
-  width: clamp(280px, 40vw, 440px);
-  aspect-ratio: 1 / 1;
-  height: auto;
+  position: absolute;
+  inset: 0;
   border-radius: 50%;
   border: 6px solid var(--accent);
   /* Slice colours are painted inline (conic-gradient from the API layout). */
@@ -3490,10 +3420,6 @@ button:not(:disabled):hover {
     flex-basis: 100%;
     text-align: left;
     font-size: 0.8rem;
-  }
-
-  .wheel {
-    width: clamp(240px, 74vw, 340px);
   }
 }
 
@@ -8819,6 +8745,7 @@ button:not(:disabled):hover {
   grid-template-columns: minmax(0, 1fr);
   max-width: 720px;
   padding-bottom: 170px;
+  align-content: center;
 }
 
 .rt--spin .rt__dock {

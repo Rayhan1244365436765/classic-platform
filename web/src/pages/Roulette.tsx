@@ -23,7 +23,6 @@ import { playSound } from '../utils/sound';
 
 /** Wheel/paytable preview stake used until the player enters one. */
 const DEFAULT_BET = 10;
-const HISTORY_LIMIT = 6;
 /** Must match the transform transition on `.wheel` so the card lands on stop. */
 const SPIN_DURATION_MS = 3600;
 /** One extra full turn per spin so the wheel always feels like it travels. */
@@ -120,7 +119,6 @@ export default function Roulette() {
   const segments = wheel?.segments ?? FALLBACK_SEGMENTS;
 
   const [result, setResult] = useState<SpinResult | null>(null);
-  const [history, setHistory] = useState<SpinResult[]>([]);
   const [isSpinning, setIsSpinning] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -221,6 +219,11 @@ export default function Roulette() {
       return;
     }
 
+    if (balance !== null && stakeAmount > balance) {
+      setError(`Insufficient balance. Your balance is ${money(balance)}.`);
+      return;
+    }
+
     setIsSpinning(true);
     setShowResult(false);
 
@@ -235,7 +238,6 @@ export default function Roulette() {
       setResult(data);
       setLandingIndex(data.segmentIndex);
       setTurns((previous) => previous + 1);
-      setHistory((previous) => [data, ...previous].slice(0, HISTORY_LIMIT));
 
       // Ticking for as long as the wheel actually spins.
       playSound('spin', { durationMs: SPIN_DURATION_MS });
@@ -286,23 +288,6 @@ export default function Roulette() {
 
       <main className="rt__body">
         <section className="rt__stage">
-          <div className="history" aria-label="Recent spins">
-            <span className="history__label">Last</span>
-            {history.length === 0 ? (
-              <span className="history__empty">no spins yet</span>
-            ) : (
-              history.map((entry, index) => (
-                <span
-                  key={`${entry.roundId}-${index}`}
-                  className={`dot dot--${entry.segmentColor}`}
-                  title={`${multiplierLabel(entry.multiplier)} · paid ${money(entry.payout)}`}
-                >
-                  {moneyCompact(entry.payout)}
-                </span>
-              ))
-            )}
-          </div>
-
           <div className={`wheel-wrap${isSpinning ? ' wheel-wrap--spinning' : ''}`}>
             <div className="wheel-pointer" aria-hidden="true" />
             <div
@@ -340,9 +325,6 @@ export default function Roulette() {
             </div>
           </div>
 
-          <p className="rt__fair">
-            Provably fair · seed hash published before every spin
-          </p>
           {error && <p className="error">{error}</p>}
           {balanceError && <p className="error">{balanceError}</p>}
         </section>
