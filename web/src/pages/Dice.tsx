@@ -12,7 +12,6 @@ import { playSound } from '../utils/sound';
  * result card reports the outcome.
  */
 
-const CHIPS = [1, 5, 10, 50, 100];
 /** Preview stake used before the player types one. */
 const DEFAULT_BET = 10;
 /** Used only if the config request fails — mirrors the backend table. */
@@ -178,7 +177,6 @@ export default function Dice() {
 
   const stake = Number(amount) || 0;
   const previewStake = stake > 0 ? stake : DEFAULT_BET;
-  const winPayout = previewStake * table.multiplier;
 
   // Marker position across the 1–100 track (roll 1 → 0%, roll 100 → 100%).
   const markerPct = Math.min(100, Math.max(0, ((display - table.min) / table.faces) * 100));
@@ -196,7 +194,40 @@ export default function Dice() {
   };
 
   return (
-    <GameShell {...gameProps}>
+    <GameShell
+      {...gameProps}
+      controls={
+        <div className="dice-actions">
+          <button
+            type="button"
+            className={`dice-btn dice-btn--high${call === 'high' ? ' dice-btn--selected' : ''}`}
+            onClick={() => {
+              setCall('high');
+              playSound('click');
+            }}
+            disabled={isRolling}
+            aria-pressed={call === 'high'}
+          >
+            <span className="dice-btn__title">HIGH</span>
+            <span className="dice-btn__sub">&gt;{table.houseNumber}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`dice-btn dice-btn--low${call === 'low' ? ' dice-btn--selected' : ''}`}
+            onClick={() => {
+              setCall('low');
+              playSound('click');
+            }}
+            disabled={isRolling}
+            aria-pressed={call === 'low'}
+          >
+            <span className="dice-btn__title">LOW</span>
+            <span className="dice-btn__sub">&lt;{table.houseNumber}</span>
+          </button>
+        </div>
+      }
+    >
       <section className="rt__stage">
         <section className="rt__stage">
           <div
@@ -275,91 +306,9 @@ export default function Dice() {
           )}
 
           <p className="rt__fair">Provably fair · seed hash published before every roll</p>
+          {error && <p className="error">{error}</p>}
           {balanceError && <p className="error">{balanceError}</p>}
         </section>
-
-        <aside className="rt__panel">
-          <div className="panel-block">
-            <div className="panel-label">
-              Bet amount
-              <span className="panel-value">{money(previewStake)}</span>
-            </div>
-            <div className="chips">
-              {CHIPS.map((chip) => (
-                <button
-                  key={chip}
-                  type="button"
-                  className={`chip${stake === chip ? ' chip--active' : ''}`}
-                  onClick={() => setAmount(String(chip))}
-                  disabled={isRolling}
-                  aria-pressed={stake === chip}
-                >
-                  ${chip}
-                </button>
-              ))}
-              <input
-                className="chips__custom"
-                type="number"
-                value={amount}
-                onChange={(event) => setAmount(event.target.value)}
-                min={0.5}
-                step={0.5}
-                disabled={isRolling}
-                aria-label="Custom bet amount"
-              />
-            </div>
-          </div>
-
-          <div className="panel-block">
-            <div className="panel-label">
-              Win pays
-              <span className="panel-value">{table.multiplier}×</span>
-            </div>
-            <div className="payout">
-              <span className="payout__amount payout__amount--gold">
-                <span className="payout__label">Win</span>
-                {money(winPayout)}
-              </span>
-              <span className="payout__amount payout__amount--gray">
-                <span className="payout__label">Roll {table.houseNumber}</span>
-                {money(0)}
-              </span>
-            </div>
-            <p className="rt__meta rt__meta--left">
-              {table.high.min}–{table.high.max} wins high · {table.low.min}–{table.low.max} wins low.
-            </p>
-          </div>
-
-          <div className="dice-actions">
-            <button
-              type="button"
-              className={`dice-btn dice-btn--high${call === 'high' ? ' dice-btn--selected' : ''}`}
-              onClick={() => void roll('high')}
-              disabled={isRolling}
-            >
-              <span className="dice-btn__title">ROLL HIGH</span>
-              <span className="dice-btn__sub">&gt;{table.houseNumber}</span>
-            </button>
-
-            <button
-              type="button"
-              className={`dice-btn dice-btn--low${call === 'low' ? ' dice-btn--selected' : ''}`}
-              onClick={() => void roll('low')}
-              disabled={isRolling}
-            >
-              <span className="dice-btn__title">ROLL LOW</span>
-              <span className="dice-btn__sub">&lt;{table.houseNumber}</span>
-            </button>
-          </div>
-
-          {error && <p className="error">{error}</p>}
-
-          <p className="rt__meta">
-            {result
-              ? `Round ${result.roundId.slice(0, 8)} · seed ${result.serverSeedHash.slice(0, 12)}…`
-              : 'The server publishes a seed hash before every round'}
-          </p>
-        </aside>
 
       </section>
     </GameShell>

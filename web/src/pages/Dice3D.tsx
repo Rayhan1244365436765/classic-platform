@@ -6,6 +6,7 @@ import type { BalanceResponse, Dice3dConfig, Dice3dResult } from '../api/types';
 import { ArrowLeftIcon, WalletIcon } from '../components/Icons';
 import { LivePlayerBadge } from '../components/LivePlayerBadge';
 import { SoundToggle } from '../components/SoundToggle';
+import { GameBottomBar } from '../components/GameBottomBar';
 import { WinModal } from '../components/WinModal';
 import { playSound } from '../utils/sound';
 
@@ -22,7 +23,6 @@ import { playSound } from '../utils/sound';
  * the three dice land one after another, 160 ms apart.
  */
 
-const CHIPS = [1, 5, 10, 25, 50];
 const DEFAULT_BET = 5;
 /** How long all three dice tumble before the first one lands. */
 const ROLL_MS = 2000;
@@ -265,7 +265,6 @@ export default function Dice3D() {
       : bet === 'low'
         ? config.low.pay
         : (config.sums.find((entry) => entry.sum === bet)?.pay ?? 0);
-  const potential = Math.round(validStake * pays * 100) / 100;
 
   function choose(next: BetChoice): void {
     if (rolling) return;
@@ -332,7 +331,7 @@ export default function Dice3D() {
   }
 
   return (
-    <div className="rt">
+    <div className="rt rt--d3d">
       <header className="rt__topbar">
         <Link to="/" className="rt__back">
           <ArrowLeftIcon className="icon icon--sm" />
@@ -389,118 +388,63 @@ export default function Dice3D() {
                 ? resultText(result)
                 : `${betLabel(bet)} pays ${multiplierLabel(pays)} · triples lose high/low`}
           </p>
-        </section>
 
-        <aside className="rt__panel">
-          <div className="panel-block">
-            <div className="panel-label">
-              Bet amount
-              <span className="panel-value">{money(validStake)}</span>
-            </div>
-            <div className="chips">
-              {CHIPS.map((chip) => (
-                <button
-                  key={chip}
-                  type="button"
-                  className={`chip${validStake === chip ? ' chip--active' : ''}`}
-                  onClick={() => {
-                    playSound('click');
-                    setAmount(String(chip));
-                  }}
-                  disabled={rolling}
-                  aria-pressed={validStake === chip}
-                >
-                  ${chip}
-                </button>
+          <div className="d3d-bets">
+            <button
+              type="button"
+              className={`d3d-bet${bet === 'low' ? ' d3d-bet--active' : ''}`}
+              onClick={() => choose('low')}
+              disabled={rolling}
+              aria-pressed={bet === 'low'}
+            >
+              <span className="d3d-bet__title">BET LOW</span>
+              <span className="d3d-bet__sub">3–10 · {multiplierLabel(config.low.pay)}</span>
+            </button>
+
+            <button
+              type="button"
+              className={`d3d-bet${bet === 'high' ? ' d3d-bet--active' : ''}`}
+              onClick={() => choose('high')}
+              disabled={rolling}
+              aria-pressed={bet === 'high'}
+            >
+              <span className="d3d-bet__title">BET HIGH</span>
+              <span className="d3d-bet__sub">11–18 · {multiplierLabel(config.high.pay)}</span>
+            </button>
+          </div>
+
+          <label className="d3d-select">
+            <span>Exact total</span>
+            <select
+              value={typeof bet === 'number' ? String(bet) : ''}
+              onChange={(event) => {
+                const next = event.target.value;
+                if (next !== '') choose(Number(next));
+              }}
+              disabled={rolling}
+            >
+              <option value="">Choose 3–18…</option>
+              {config.sums.map((entry) => (
+                <option key={entry.sum} value={entry.sum}>
+                  {entry.sum} — pays {multiplierLabel(entry.pay)}
+                </option>
               ))}
-              <input
-                className="chips__custom"
-                type="number"
-                value={amount}
-                onChange={(event) => setAmount(event.target.value)}
-                min={0.5}
-                step={0.5}
-                disabled={rolling}
-                aria-label="Custom bet amount"
-              />
-            </div>
-          </div>
-
-          <div className="panel-block">
-            <div className="panel-label">
-              Your bet
-              <span className="panel-value">{betLabel(bet)}</span>
-            </div>
-
-            <div className="d3d-bets">
-              <button
-                type="button"
-                className={`d3d-bet${bet === 'low' ? ' d3d-bet--active' : ''}`}
-                onClick={() => choose('low')}
-                disabled={rolling}
-                aria-pressed={bet === 'low'}
-              >
-                <span className="d3d-bet__title">BET LOW</span>
-                <span className="d3d-bet__sub">3–10 · {multiplierLabel(config.low.pay)}</span>
-              </button>
-
-              <button
-                type="button"
-                className={`d3d-bet${bet === 'high' ? ' d3d-bet--active' : ''}`}
-                onClick={() => choose('high')}
-                disabled={rolling}
-                aria-pressed={bet === 'high'}
-              >
-                <span className="d3d-bet__title">BET HIGH</span>
-                <span className="d3d-bet__sub">11–18 · {multiplierLabel(config.high.pay)}</span>
-              </button>
-            </div>
-
-            <label className="d3d-select">
-              <span>Exact total</span>
-              <select
-                value={typeof bet === 'number' ? String(bet) : ''}
-                onChange={(event) => {
-                  const next = event.target.value;
-                  if (next !== '') choose(Number(next));
-                }}
-                disabled={rolling}
-              >
-                <option value="">Choose 3–18…</option>
-                {config.sums.map((entry) => (
-                  <option key={entry.sum} value={entry.sum}>
-                    {entry.sum} — pays {multiplierLabel(entry.pay)}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <button
-            type="button"
-            className="d3d-roll"
-            onClick={() => void roll()}
-            disabled={rolling || validStake <= 0}
-          >
-            <span className="d3d-roll__title">{rolling ? 'ROLLING…' : 'ROLL DICE'}</span>
-            <span className="d3d-roll__sub">
-              {money(validStake)} wins {money(potential)}
-            </span>
-          </button>
+            </select>
+          </label>
 
           {error && <p className="error">{error}</p>}
-
-          <p className="rt__meta">
-            {(config.high.rtp * 100).toFixed(2)}% RTP · triples lose high/low
-          </p>
-
-          <p className="rt__meta">
-            {result
-              ? `Round ${result.roundId.slice(0, 8)} · seed ${result.serverSeedHash.slice(0, 12)}…`
-              : 'Provably fair · three dice per committed seed'}
-          </p>
-        </aside>
+        </section>
       </main>
+
+      <footer className="rt__dock">
+        <GameBottomBar
+          betAmount={validStake}
+          onBetChange={(value) => setAmount(String(value))}
+          onPlay={() => void roll()}
+          playLabel="ROLL"
+          isPlaying={rolling}
+        />
+      </footer>
 
       <WinModal isOpen={isModalOpen} winAmount={winAmount} onClose={() => setIsModalOpen(false)} />
     </div>
