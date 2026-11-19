@@ -27,6 +27,7 @@ import { slotsRouter } from './modules/game/slots/slots.routes.js';
 import { teenpattiRouter } from './modules/game/teenpatti/teenpatti.routes.js';
 import { paymentRouter } from './modules/payment/payment.routes.js';
 import { walletRouter } from './modules/wallet/wallet.routes.js';
+import { historyRouter } from './modules/game/history/history.routes.js';
 
 /**
  * `req.user` is populated by `authGuard` after a successful JWT verification.
@@ -79,6 +80,7 @@ app.use('/api/game/fruit_bonanza', fruitBonanzaRouter);
 app.use('/api/game/dice3d', dice3dRouter);
 app.use('/api/game/boxing_king', boxingKingRouter);
 app.use('/api/game/fortune_gems', fortuneGemsRouter);
+app.use('/api/game/history', historyRouter);
 app.use('/api/admin', adminRouter);
 
 // Must stay last: Express only treats it as an error handler after all routes.
