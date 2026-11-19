@@ -710,3 +710,26 @@ export type ApiErrorBody = {
   };
 };
 
+/** A single game bet history row (GET /api/game/history). */
+export type GameHistoryRound = {
+  id: string;
+  /** Canonical game slug ('slots', 'spin', 'mines', 'blackjack', 'red', …). */
+  game: string;
+  betAmount: number;
+  multiplier: number | null;
+  /** Gross amount credited (stake included); 0 on a loss, = betAmount on a push. */
+  payout: number;
+  createdAt: string;
+};
+
+export type GameHistoryResponse = {
+  rounds: GameHistoryRound[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+export type PaymentsResponse = {
+  payments: PaymentRequest[];
+};
+

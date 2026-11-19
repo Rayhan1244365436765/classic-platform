@@ -15,6 +15,7 @@ import {
   ArrowUpIcon,
   GiftIcon,
   HeadsetIcon,
+  HistoryIcon,
   HomeIcon,
   LiveIcon,
   LogoutIcon,
@@ -416,6 +417,14 @@ export default function Lobby() {
         >
           <GiftIcon className="icon" />
           <span>Promotions</span>
+        </button>
+        <button
+          type="button"
+          className="bottom-link"
+          onClick={() => navigate('/history')}
+        >
+          <HistoryIcon className="icon" />
+          <span>History</span>
         </button>
         <button
           type="button"

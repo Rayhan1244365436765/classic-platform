@@ -13,6 +13,7 @@ import FruitBonanza from './pages/FruitBonanza';
 import FortuneGems from './pages/FortuneGems';
 import DragonTiger from './pages/DragonTiger';
 import Keno from './pages/Keno';
+import History from './pages/History';
 import Lobby from './pages/Lobby';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -169,6 +170,14 @@ function App() {
           element={
             <ProtectedRoute>
               <FortuneGems />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/history"
+          element={
+            <ProtectedRoute>
+              <History />
             </ProtectedRoute>
           }
         />
