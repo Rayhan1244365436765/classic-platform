@@ -9,6 +9,7 @@ import type {
   BalanceResponse,
 } from '../api/types';
 import { ArrowLeftIcon, WalletIcon } from '../components/Icons';
+import { GameBottomBar } from '../components/GameBottomBar';
 import { LivePlayerBadge } from '../components/LivePlayerBadge';
 import { SoundToggle } from '../components/SoundToggle';
 import {
@@ -32,7 +33,6 @@ import {
  * feeds the plane and the trail, so the flame follows the jet exactly.
  */
 
-const CHIPS = [1, 5, 10, 50, 100];
 const DEFAULT_BET = 10;
 /** Used only if the config request fails — mirrors the backend constants. */
 const FALLBACK_CONFIG: AviatorConfig = { growthTauMs: 5500, crashCap: 100, minCashout: 1.01 };
@@ -806,7 +806,6 @@ export default function Aviator() {
   const previewStake = stake > 0 ? stake : DEFAULT_BET;
   const flying = phase === 'flying';
   const busy = phase === 'starting' || phase === 'settling';
-  const cashoutValue = previewStake * multiplier;
   const canCashOut = flying && multiplier >= table.minCashout;
 
   // Position the DOM jet in % of the canvas box (identical mapping to the trail).
@@ -817,7 +816,7 @@ export default function Aviator() {
   };
 
   return (
-    <div className="rt">
+    <div className="rt rt--aviator">
       <header className="rt__topbar">
         <Link to="/" className="rt__back">
           <ArrowLeftIcon className="icon icon--sm" />
@@ -908,101 +907,27 @@ export default function Aviator() {
             </div>
           )}
 
-          <p className="rt__fair">Provably fair · seed hash published before every round</p>
+          <p className="rt__fair">
+            {roundId
+              ? `Round ${roundId.slice(0, 8)} · seed ${seedHash?.slice(0, 12) ?? 'pending'}…`
+              : 'Provably fair · seed hash published before every round'}
+          </p>
+          {error && <p className="error">{error}</p>}
           {balanceError && <p className="error">{balanceError}</p>}
         </section>
-
-        <aside className="rt__panel">
-          <div className="panel-block">
-            <div className="panel-label">
-              Bet amount
-              <span className="panel-value">{money(previewStake)}</span>
-            </div>
-            <div className="chips">
-              {CHIPS.map((chip) => (
-                <button
-                  key={chip}
-                  type="button"
-                  className={`chip${stake === chip ? ' chip--active' : ''}`}
-                  onClick={() => setAmount(String(chip))}
-                  disabled={flying || busy}
-                  aria-pressed={stake === chip}
-                >
-                  ${chip}
-                </button>
-              ))}
-              <input
-                className="chips__custom"
-                type="number"
-                value={amount}
-                onChange={(event) => setAmount(event.target.value)}
-                min={0.5}
-                step={0.5}
-                disabled={flying || busy}
-                aria-label="Custom bet amount"
-              />
-            </div>
-            <p className="rt__meta rt__meta--left">
-              Cash out any time — the longer the flight, the bigger the multiplier.
-            </p>
-          </div>
-
-          <div className="panel-block">
-            <div className="panel-label">
-              Cash out value
-              <span className="panel-value">{money(cashoutValue)}</span>
-            </div>
-            <div className="payout">
-              <span className="payout__amount payout__amount--gold">
-                <span className="payout__label">Now</span>
-                {money(cashoutValue)}
-              </span>
-              <span className="payout__amount payout__amount--gray">
-                <span className="payout__label">Min</span>
-                {table.minCashout.toFixed(2)}x
-              </span>
-            </div>
-            <p className="rt__meta rt__meta--left">
-              If the plane flies away first, the stake is lost.
-            </p>
-          </div>
-
-          {flying ? (
-            <button
-              type="button"
-              className="aviator-action aviator-action--cashout"
-              onClick={() => void handleCashout()}
-              disabled={!canCashOut || busy}
-            >
-              <span className="aviator-action__title">
-                {canCashOut ? `CASH OUT ${money(cashoutValue)}` : 'WAIT FOR 1.01x…'}
-              </span>
-              <span className="aviator-action__sub">{multiplier.toFixed(2)}x</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="aviator-action"
-              onClick={() => void placeBet()}
-              disabled={busy}
-            >
-              <span className="aviator-action__title">
-                {phase === 'starting' ? 'STARTING…' : 'PLACE BET'}
-              </span>
-              <span className="aviator-action__sub">{money(previewStake)}</span>
-            </button>
-          )}
-
-          {error && <p className="error">{error}</p>}
-
-          <p className="rt__meta">
-            {roundId
-              ? `Round ${roundId.slice(0, 8)}${seedHash ? ` · seed ${seedHash.slice(0, 12)}…` : ''}`
-              : 'The server publishes a seed hash before every round'}
-          </p>
-        </aside>
-
       </main>
+
+      <footer className="rt__dock">
+        <GameBottomBar
+          betAmount={previewStake}
+          onBetChange={(value) => setAmount(String(value))}
+          onPlay={() => (flying ? void handleCashout() : void placeBet())}
+          playLabel={flying ? (canCashOut ? 'CASH OUT' : 'WAIT') : 'PLACE BET'}
+          isPlaying={busy}
+          disabled={flying && !canCashOut}
+          chipsDisabled={busy || flying}
+        />
+      </footer>
     </div>
   );
 }

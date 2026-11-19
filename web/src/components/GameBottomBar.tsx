@@ -10,6 +10,8 @@ export type GameBottomBarProps = {
   isPlaying: boolean;
   /** Blocks play on top of `isPlaying` (e.g. stake out of range). */
   disabled?: boolean;
+  /** Blocks only the bet chips (e.g. Aviator in flight) — defaults to `isPlaying`. */
+  chipsDisabled?: boolean;
   chips?: number[];
 };
 
@@ -40,6 +42,7 @@ export function GameBottomBar({
   playLabel,
   isPlaying,
   disabled = false,
+  chipsDisabled,
   chips = DEFAULT_CHIPS,
 }: GameBottomBarProps) {
   const [draft, setDraft] = useState(() => String(betAmount));
@@ -71,7 +74,7 @@ export function GameBottomBar({
         type="button"
         className={`gs-chip${active ? ' gs-chip--active' : ''}`}
         onClick={() => pickChip(chip)}
-        disabled={isPlaying}
+        disabled={chipsDisabled ?? isPlaying}
         aria-pressed={active}
         aria-label={`Bet ${money(chip)}`}
       >
@@ -110,7 +113,7 @@ export function GameBottomBar({
           onChange={handleCustom}
           min={0.5}
           step={0.5}
-          disabled={isPlaying}
+          disabled={chipsDisabled ?? isPlaying}
           aria-label="Custom bet amount"
         />
       </label>

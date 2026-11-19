@@ -6,6 +6,7 @@ import type { BalanceResponse, CascadeConfig, CascadeResult, CascadeSymbolId } f
 import { ArrowLeftIcon, WalletIcon } from '../components/Icons';
 import { LivePlayerBadge } from '../components/LivePlayerBadge';
 import { SoundToggle } from '../components/SoundToggle';
+import { GameBottomBar } from '../components/GameBottomBar';
 import { WinModal } from '../components/WinModal';
 import { playSound } from '../utils/sound';
 
@@ -21,7 +22,7 @@ import { playSound } from '../utils/sound';
  * Cascades multiply: ×1, ×2, ×4, ×8, ×16, up to five steps.
  */
 
-const CHIPS = [1, 5, 10, 25, 50, 100];
+/** Preview stake used before the player types one. */
 const DEFAULT_BET = 1;
 
 /** Replay timings (ms). */
@@ -90,13 +91,6 @@ function money(value: number): string {
   })}`;
 }
 
-/** `2.4123` → `2.41×`. */
-function multiplierLabel(value: number): string {
-  return `${(Math.round(value * 100) / 100).toLocaleString('en-US', {
-    maximumFractionDigits: 2,
-  })}×`;
-}
-
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => {
     window.setTimeout(resolve, ms);
@@ -126,8 +120,6 @@ export default function Cascade() {
   const [phase, setPhase] = useState<Phase>('idle');
   const [winning, setWinning] = useState<Set<number>>(new Set());
   const [activeStep, setActiveStep] = useState(-1);
-  const [runningWin, setRunningWin] = useState(0);
-
   const [result, setResult] = useState<CascadeResult | null>(null);
   const [spinning, setSpinning] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -207,7 +199,6 @@ export default function Cascade() {
     setModalOpen(false);
     setActiveStep(-1);
     setWinning(new Set());
-    setRunningWin(0);
     playSound('click');
 
     try {
@@ -246,11 +237,6 @@ export default function Cascade() {
         setPhase('dropping');
         setWinning(new Set());
         showBoard(nextGrid);
-        setRunningWin(
-          Math.round(
-            data.steps.slice(0, index + 1).reduce((sum, entry) => sum + entry.win, 0) * 100,
-          ) / 100,
-        );
         await delay(DROP_MS);
         if (unmounted.current) return;
       }
@@ -259,7 +245,6 @@ export default function Cascade() {
       setPhase('done');
       setActiveStep(-1);
       setResult(data);
-      setRunningWin(data.totalWin);
       playSound(data.payout > 0 ? 'win' : 'lose');
 
       // Celebrate every win, however small — the dialog is part of the loop.
@@ -277,8 +262,6 @@ export default function Cascade() {
     setModalOpen(false);
   }
 
-  const runningMoney = Math.round(validStake * runningWin * 100) / 100;
-
   const statusText =
     phase === 'falling'
       ? 'Spinning…'
@@ -295,7 +278,7 @@ export default function Cascade() {
               : 'Press SPIN to play';
 
   return (
-    <div className="rt">
+    <div className="rt rt--cascade">
       <header className="rt__topbar">
         <Link to="/" className="rt__back">
           <ArrowLeftIcon className="icon icon--sm" />
@@ -380,88 +363,20 @@ export default function Cascade() {
               {statusText}
             </p>
           </div>
-        </section>
-
-        <aside className="rt__panel">
-          <div className="panel-block">
-            <div className="panel-label">
-              Bet amount
-              <span className="panel-value">{money(validStake)}</span>
-            </div>
-            <div className="chips">
-              {CHIPS.map((chip) => (
-                <button
-                  key={chip}
-                  type="button"
-                  className={`chip${validStake === chip ? ' chip--active' : ''}`}
-                  onClick={() => {
-                    playSound('click');
-                    setAmount(String(chip));
-                  }}
-                  disabled={spinning}
-                  aria-pressed={validStake === chip}
-                >
-                  ${chip}
-                </button>
-              ))}
-              <input
-                className="chips__custom"
-                type="number"
-                value={amount}
-                onChange={(event) => setAmount(event.target.value)}
-                min={0.5}
-                step={0.5}
-                disabled={spinning}
-                aria-label="Custom bet amount"
-              />
-            </div>
-          </div>
-
-          <div className="panel-block">
-            <div className="panel-label">
-              Total win
-              <span className="panel-value">
-                {runningWin > 0 ? `${multiplierLabel(runningWin)} bet` : '—'}
-              </span>
-            </div>
-            <p className={`cs-win${runningWin > 0 ? ' cs-win--active' : ''}`}>
-              {money(runningMoney)}
-            </p>
-            <p className="rt__meta rt__meta--left">
-              Clusters of 3+ pay, then clear and drop — each cascade doubles the multiplier.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            className="aviator-action"
-            onClick={() => void spin()}
-            disabled={spinning || validStake <= 0}
-          >
-            <span className="aviator-action__title">{spinning ? 'SPINNING…' : 'SPIN'}</span>
-            <span className="aviator-action__sub">{money(validStake)} per spin</span>
-          </button>
-
-          <div className="cs-hint">
-            <div className="cs-hint__icons" aria-hidden="true">
-              <span>🤠</span>
-              <span>🔫</span>
-              <span>⭐</span>
-            </div>
-            <p className="cs-hint__text">
-              Provably fair · RTP {(config.rtp * 100).toFixed(2)}%
-            </p>
-          </div>
 
           {error && <p className="error">{error}</p>}
-
-          <p className="rt__meta cs-panel__foot">
-            {result
-              ? `Round ${result.roundId.slice(0, 8)} · seed ${result.serverSeedHash.slice(0, 12)}…`
-              : 'One committed seed per spin'}
-          </p>
-        </aside>
+        </section>
       </main>
+
+      <footer className="rt__dock">
+        <GameBottomBar
+          betAmount={validStake}
+          onBetChange={(value) => setAmount(String(value))}
+          onPlay={() => void spin()}
+          playLabel="SPIN"
+          isPlaying={spinning}
+        />
+      </footer>
 
       <WinModal isOpen={modalOpen} winAmount={result?.payout ?? 0} onClose={closeWinModal} />
     </div>
