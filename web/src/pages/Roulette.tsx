@@ -30,7 +30,7 @@ const TURNS_PER_SPIN = 4;
 
 /** Used only if the config request fails — mirrors the backend table. */
 const FALLBACK_SEGMENTS: readonly number[] = [
-  0, 10, 0, 0, 2, 0, 0, 0.5, 0, 3, 0, 0, 0.5, 0, 1, 0, 0.5, 0, 0.5, 0,
+  10, 0, 0.5, 0, 0, 2, 0, 0.5, 0, 0, 3, 0, 0.5, 0, 0, 1, 0, 0.5, 0, 0,
 ];
 
 const SWATCH: Record<SegmentColor, string> = {
