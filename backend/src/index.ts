@@ -17,6 +17,7 @@ import { aviatorRouter } from './modules/game/aviator/aviator.routes.js';
 import { diceRouter } from './modules/game/dice/dice.routes.js';
 import { dice3dRouter } from './modules/game/dice3d/dice3d.routes.js';
 import { fruitBonanzaRouter } from './modules/game/fruit_bonanza/fruit_bonanza.routes.js';
+import { fortuneGemsRouter } from './modules/game/fortune_gems/fortune_gems.routes.js';
 import { dragontigerRouter } from './modules/game/dragontiger/dragontiger.routes.js';
 import { kenoRouter } from './modules/game/keno/keno.routes.js';
 import { minesRouter } from './modules/game/mines/mines.routes.js';
@@ -76,6 +77,7 @@ app.use('/api/game/classic_roulette', classicRouletteRouter);
 app.use('/api/game/fruit_bonanza', fruitBonanzaRouter);
 app.use('/api/game/dice3d', dice3dRouter);
 app.use('/api/game/boxing_king', boxingKingRouter);
+app.use('/api/game/fortune_gems', fortuneGemsRouter);
 app.use('/api/admin', adminRouter);
 
 // Must stay last: Express only treats it as an error handler after all routes.
