@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS game_configs (
 INSERT INTO game_configs (id, config)
 VALUES
     ('slots',    '{"lineMultiplier": 10.8}'::jsonb),
-    ('roulette', '{"segments": [10,3,2,1,0.5,0.5,0.5,0.5,0,0,0,0,0,0,0,0,0,0,0,0]}'::jsonb)
+    ('roulette', '{"segments": [0,10,0,0,2,0,0,0.5,0,3,0,0,0.5,0,1,0,0.5,0,0.5,0]}'::jsonb)
 ON CONFLICT (id) DO NOTHING;
 
 COMMIT;

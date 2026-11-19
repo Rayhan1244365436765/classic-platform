@@ -32,8 +32,8 @@ import { createTransaction, getBalance, lockUser } from '../../wallet/wallet.ser
 
 /** Keep this in sync with the wheel drawn by the clients. */
 export const WHEEL_SEGMENTS: readonly number[] = [
-  10, 3, 2, 1, 0.5, 0.5, 0.5, 0.5, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 10, 0, 0, 2, 0, 0, 0.5, 0, 3,
+  0, 0, 0.5, 0, 1, 0, 0.5, 0, 0.5, 0,
 ];
 
 export const SEGMENT_COUNT = WHEEL_SEGMENTS.length;

@@ -2961,17 +2961,18 @@ button:not(:disabled):hover {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 6%;
+  padding-top: 8%;
   transform-origin: 50% 50%;
 }
 
 .wheel__label {
   color: #eef2f8;
-  font-size: clamp(0.44rem, 0.82vw, 0.66rem);
-  font-weight: 800;
+  font-size: clamp(0.72rem, 2vw, 1rem);
+  font-weight: 900;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
   text-shadow: 0 1px 3px rgb(0 0 0 / 90%);
+  white-space: nowrap;
 }
 
 /* Losing slices stay muted so the prize slices pop. */
