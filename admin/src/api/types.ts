@@ -73,3 +73,27 @@ export type ApiErrorBody = {
     message: string;
   };
 };
+
+/** Game configuration (admin RTP control) — see backend/src/modules/config. */
+export type SlotsGameConfig = {
+  lineMultiplier: number;
+};
+
+export type RouletteGameConfig = {
+  segments: number[];
+};
+
+export type GameConfigSummary = {
+  id: string;
+  config: unknown;
+  rtp: number;
+  houseEdge: number;
+};
+
+export type AdminGamesResponse = {
+  games: GameConfigSummary[];
+};
+
+export type AdminGameConfigResponse = {
+  game: GameConfigSummary;
+};

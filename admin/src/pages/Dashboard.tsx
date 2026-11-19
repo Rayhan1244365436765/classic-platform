@@ -165,6 +165,9 @@ export default function Dashboard() {
           <button type="button" className="button" onClick={handleRefresh} disabled={loading}>
             {loading ? 'Loading…' : 'Refresh'}
           </button>
+          <button type="button" className="button button--ghost" onClick={() => navigate('/games')}>
+            Game Config
+          </button>
           <button type="button" className="button button--ghost" onClick={handleLogout}>
             Log out
           </button>
