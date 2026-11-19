@@ -17,7 +17,6 @@ import { playSound } from '../utils/sound';
  * reveal: nine reels scroll, stop column by column, then the paying rows glow.
  */
 
-const CHIPS = [1, 5, 10, 50, 100];
 /** Preview stake used before the player types one. */
 const DEFAULT_BET = 10;
 /** Used only if the config request fails — mirrors the backend table. */
@@ -225,42 +224,7 @@ export default function Slots() {
   };
 
   return (
-    <GameShell {...gameProps}
-      controls={
-        <>
-          <div className="panel-block">
-            <div className="panel-label">
-              Bet amount
-              <span className="panel-value">{money(previewStake)}</span>
-            </div>
-            <div className="chips">
-              {CHIPS.map((chip) => (
-                <button
-                  key={chip}
-                  type="button"
-                  className={`chip${stake === chip ? ' chip--active' : ''}`}
-                  onClick={() => setAmount(String(chip))}
-                  disabled={isSpinning}
-                  aria-pressed={stake === chip}
-                >
-                  ${chip}
-                </button>
-              ))}
-              <input
-                className="chips__custom"
-                type="number"
-                value={amount}
-                onChange={(event) => setAmount(event.target.value)}
-                min={0.5}
-                step={0.5}
-                disabled={isSpinning}
-                aria-label="Custom bet amount"
-              />
-            </div>
-          </div>
-        </>
-      }
-    >
+    <GameShell {...gameProps}>
       <section className="rt__stage">
         <div className={`cabinet${isSpinning ? ' cabinet--spinning' : ''}`}>
           <div className="cabinet__glow" aria-hidden="true" />

@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 
+import { GameBottomBar } from './GameBottomBar';
 import { ArrowLeftIcon, WalletIcon } from './Icons';
+import { LivePlayerBadge } from './LivePlayerBadge';
 import { SoundToggle } from './SoundToggle';
 
 /**
@@ -63,9 +65,6 @@ export function GameShell({
   title,
   balanceError = null,
 }: GameShellProps) {
-  const left = chips.slice(0, Math.ceil(chips.length / 2));
-  const right = chips.slice(Math.ceil(chips.length / 2));
-
   return (
     <div className={`gs${controls ? ' gs--wide-bar' : ''}`}>
       <header className="gs__top">
@@ -75,6 +74,8 @@ export function GameShell({
         </button>
 
         <h1 className="gs__title">{title ?? 'Play'}</h1>
+
+        <LivePlayerBadge baseCount={3800} />
 
         <SoundToggle />
 
@@ -92,59 +93,15 @@ export function GameShell({
       <footer className="gs__bar">
         {controls && <div className="gs__controls">{controls}</div>}
 
-        <div className="gs__row">
-          <div className="gs__chips">
-            {left.map((chip) => {
-              const active = Math.abs(betAmount - chip) < 0.005;
-
-              return (
-                <button
-                  key={chip}
-                  type="button"
-                  className={`gs-chip${active ? ' gs-chip--active' : ''}`}
-                  onClick={() => setBetAmount(chip)}
-                  disabled={isSpinning}
-                  aria-pressed={active}
-                  aria-label={`Bet ${money(chip)}`}
-                >
-                  {money(chip)}
-                </button>
-              );
-            })}
-          </div>
-
-          <button
-            type="button"
-            className={`gs__action${isSpinning ? ' gs__action--busy' : ''}`}
-            onClick={onSpin}
-            disabled={isSpinning || disabled}
-            aria-label={`${spinLabel} for ${money(betAmount)}`}
-          >
-            <span className="gs__action-flame" aria-hidden="true" />
-            <span className="gs__action-label">{spinLabel}</span>
-            <span className="gs__action-bet">{isSpinning ? '…' : money(betAmount)}</span>
-          </button>
-
-          <div className="gs__chips">
-            {right.map((chip) => {
-              const active = Math.abs(betAmount - chip) < 0.005;
-
-              return (
-                <button
-                  key={chip}
-                  type="button"
-                  className={`gs-chip${active ? ' gs-chip--active' : ''}`}
-                  onClick={() => setBetAmount(chip)}
-                  disabled={isSpinning}
-                  aria-pressed={active}
-                  aria-label={`Bet ${money(chip)}`}
-                >
-                  {money(chip)}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <GameBottomBar
+          betAmount={betAmount}
+          onBetChange={setBetAmount}
+          onPlay={onSpin}
+          playLabel={spinLabel}
+          isPlaying={isSpinning}
+          disabled={disabled}
+          chips={chips}
+        />
       </footer>
     </div>
   );

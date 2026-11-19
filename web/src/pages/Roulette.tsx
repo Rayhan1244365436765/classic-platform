@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, SegmentColor, SpinResult, WheelConfig } from '../api/types';
 import { ArrowLeftIcon, WalletIcon } from '../components/Icons';
+import { GameBottomBar } from '../components/GameBottomBar';
 import { LivePlayerBadge } from '../components/LivePlayerBadge';
 import { SoundToggle } from '../components/SoundToggle';
 import { playSound } from '../utils/sound';
@@ -20,7 +21,6 @@ import { playSound } from '../utils/sound';
  * API docs, not in the game screen.
  */
 
-const CHIPS = [1, 5, 10, 50, 100];
 /** Wheel/paytable preview stake used until the player enters one. */
 const DEFAULT_BET = 10;
 const HISTORY_LIMIT = 6;
@@ -257,22 +257,12 @@ export default function Roulette() {
   const balanceLabel = balance === null ? '···' : `$${balance.toFixed(2)}`;
   const stake = Number(amount) || 0;
 
-  // Paytable: the distinct multipliers on the wheel. No odds are shown — the
-  // player only needs to know what a slice pays, not how likely it is.
-  const multipliers = useMemo(
-    () => [...new Set(segments)].sort((a, b) => a - b),
-    [segments],
-  );
-  const topMultiplier = multipliers[multipliers.length - 1] ?? 0;
-
-  // Every label on screen is a dollar amount for the *current* stake, so the
-  // wheel updates live as the player changes their bet. An empty input falls
-  // back to DEFAULT_BET instead of showing "$0" everywhere.
+  // Every label on the wheel is a dollar amount for the *current* stake, so the
+  // wheel updates live as the player changes their bet.
   const previewStake = stake > 0 ? stake : DEFAULT_BET;
-  const topPayout = previewStake * topMultiplier;
 
   return (
-    <div className="rt">
+    <div className="rt rt--spin">
       <header className="rt__topbar">
         <Link to="/" className="rt__back">
           <ArrowLeftIcon className="icon icon--sm" />
@@ -353,81 +343,9 @@ export default function Roulette() {
           <p className="rt__fair">
             Provably fair · seed hash published before every spin
           </p>
+          {error && <p className="error">{error}</p>}
           {balanceError && <p className="error">{balanceError}</p>}
         </section>
-
-        <aside className="rt__panel">
-          <div className="panel-block">
-            <div className="panel-label">
-              Bet amount
-              <span className="panel-value">${stake.toFixed(2)}</span>
-            </div>
-            <div className="chips">
-              {CHIPS.map((chip) => (
-                <button
-                  key={chip}
-                  type="button"
-                  className={`chip${stake === chip ? ' chip--active' : ''}`}
-                  onClick={() => setAmount(String(chip))}
-                  disabled={isSpinning}
-                  aria-pressed={stake === chip}
-                >
-                  ${chip}
-                </button>
-              ))}
-              <input
-                className="chips__custom"
-                type="number"
-                value={amount}
-                onChange={(event) => setAmount(event.target.value)}
-                min={0.5}
-                step={0.5}
-                disabled={isSpinning}
-                aria-label="Custom bet amount"
-              />
-            </div>
-            <p className="rt__meta rt__meta--left">
-              Change your bet and every slice updates.
-            </p>
-          </div>
-
-          <div className="panel-block">
-            <div className="panel-label">
-              Paytable
-              <span className="panel-value">up to {money(topPayout)}</span>
-            </div>
-            <div className="payout">
-              {multipliers.map((multiplier) => (
-                <span
-                  key={multiplier}
-                  className={`payout__amount payout__amount--${colorOf(multiplier)}`}
-                >
-                  {money(previewStake * multiplier)}
-                </span>
-              ))}
-            </div>
-            <p className="rt__meta rt__meta--left">
-              Payouts shown for your {money(previewStake)} bet.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            className={`spin${isSpinning ? ' spin--busy' : ''}`}
-            onClick={() => void handleSpin()}
-            disabled={isSpinning}
-          >
-            {isSpinning ? 'SPINNING…' : 'SPIN'}
-          </button>
-
-          {error && <p className="error">{error}</p>}
-
-          <p className="rt__meta">
-            {result
-              ? `Round ${result.roundId.slice(0, 8)} · seed ${result.serverSeedHash.slice(0, 12)}…`
-              : 'The server publishes a seed hash before every round'}
-          </p>
-        </aside>
 
         {showResult && result && (
           <div className="result-overlay" role="dialog" aria-modal="true" aria-labelledby="rt-result">
@@ -477,6 +395,16 @@ export default function Roulette() {
         )}
 
       </main>
+
+      <footer className="rt__dock">
+        <GameBottomBar
+          betAmount={previewStake}
+          onBetChange={(value) => setAmount(String(value))}
+          onPlay={() => void handleSpin()}
+          playLabel="SPIN"
+          isPlaying={isSpinning}
+        />
+      </footer>
     </div>
   );
 }
