@@ -10,6 +10,7 @@ import {
 } from '../../../common/provably-fair/index.js';
 import { AppError } from '../../../common/utils/AppError.js';
 import { withTransaction } from '../../../config/db.js';
+import { getGameConfig } from '../../config/config.service.js';
 import { createTransaction, getBalance, lockUser } from '../../wallet/wallet.service.js';
 
 /**
@@ -56,6 +57,12 @@ export const SLOT_PAYTABLE = {
   lines: SLOT_LINES.length,
 } as const;
 
+/** Per-line payout: admin-configurable, falling back to the hard-coded table. */
+function lineMultiplier(): number {
+  const config = getGameConfig<{ lineMultiplier: number }>('slots');
+  return config?.lineMultiplier ?? SLOT_PAYTABLE.lineMultiplier;
+}
+
 /** 3 rows × 3 columns. */
 export const SLOT_CELLS = SLOT_LINES.length * 3;
 
@@ -85,14 +92,14 @@ export type SlotsResult = {
 /** Paytable + symbol set, exposed so clients never hard-code a different one. */
 export function slotsConfig(): {
   symbols: readonly SlotSymbol[];
-  paytable: typeof SLOT_PAYTABLE;
+  paytable: { lineMultiplier: number; lines: number };
   lines: readonly (readonly [number, number, number])[];
   cells: number;
   outcomes: number;
 } {
   return {
     symbols: SLOT_SYMBOLS,
-    paytable: SLOT_PAYTABLE,
+    paytable: { lineMultiplier: lineMultiplier(), lines: SLOT_PAYTABLE.lines },
     lines: SLOT_LINES,
     cells: SLOT_CELLS,
     outcomes: SLOT_OUTCOMES,
@@ -108,7 +115,7 @@ export function slotsRtp(): number {
   // n triple combinations out of n³ per line.
   const lineWinChance = n / n ** 3;
 
-  return SLOT_LINES.length * lineWinChance * SLOT_PAYTABLE.lineMultiplier;
+  return SLOT_LINES.length * lineWinChance * lineMultiplier();
 }
 
 /** Returns the paying lines and the combined multiplier for a 3×3 grid. */
@@ -125,7 +132,7 @@ export function evaluateGrid(grid: readonly SlotSymbol[]): {
     }
   });
 
-  const multiplier = roundMoney(winningLines.length * SLOT_PAYTABLE.lineMultiplier);
+  const multiplier = roundMoney(winningLines.length * lineMultiplier());
 
   return { winningLines, multiplier };
 }
@@ -198,7 +205,7 @@ export async function playSlots(userId: string, betAmount: number): Promise<Slot
   return {
     grid,
     winningLines,
-    lineMultiplier: SLOT_PAYTABLE.lineMultiplier,
+    lineMultiplier: lineMultiplier(),
     multiplier,
     won,
     payout,

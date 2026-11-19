@@ -10,6 +10,11 @@ import {
   getUsers as fetchUsers,
   rejectPayment as rejectPaymentRequest,
 } from './admin.service.js';
+import {
+  getGameConfigSummary,
+  listGameConfigs,
+  setGameConfig,
+} from '../config/config.service.js';
 
 /**
  * Admin read endpoints. Every handler is behind `authGuard` + `adminGuard`,
@@ -108,6 +113,72 @@ function readPaymentId(req: Request): string {
 
   if (!id) {
     throw new AppError('PAYMENT_NOT_FOUND', 404, 'Payment request not found');
+  }
+
+  return id;
+}
+
+/** GET /api/admin/games — list every game config + derived RTP/edge. */
+export async function listGames(
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    res.status(200).json({ games: listGameConfigs() });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** GET /api/admin/games/:id/config */
+export async function getGameConfig(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const game = getGameConfigSummary(readGameId(req));
+    if (!game) {
+      throw new AppError('GAME_CONFIG_NOT_FOUND', 404, 'No configuration for this game');
+    }
+
+    res.status(200).json({ game });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** PUT /api/admin/games/:id/config */
+export async function updateGameConfig(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const adminId = requireUserId(req);
+    const id = readGameId(req);
+    const rawConfig = (req.body as { config?: unknown } | undefined)?.config;
+
+    await setGameConfig(id, rawConfig, adminId);
+
+    const game = getGameConfigSummary(id);
+    if (!game) {
+      throw new AppError('GAME_CONFIG_NOT_FOUND', 404, 'No configuration for this game');
+    }
+
+    res.status(200).json({ game });
+  } catch (error) {
+    next(error);
+  }
+}
+
+function readGameId(req: Request): string {
+  const raw = req.params.id;
+  const id = Array.isArray(raw) ? raw[0] : raw;
+
+  if (!id) {
+    throw new AppError('UNKNOWN_GAME', 404, 'Game id is required');
   }
 
   return id;

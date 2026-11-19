@@ -10,6 +10,7 @@ import {
 } from '../../../common/provably-fair/index.js';
 import { AppError } from '../../../common/utils/AppError.js';
 import { withTransaction } from '../../../config/db.js';
+import { getGameConfig } from '../../config/config.service.js';
 import { createTransaction, getBalance, lockUser } from '../../wallet/wallet.service.js';
 
 /**
@@ -36,6 +37,12 @@ export const WHEEL_SEGMENTS: readonly number[] = [
 ];
 
 export const SEGMENT_COUNT = WHEEL_SEGMENTS.length;
+
+/** Wheel layout: admin-configurable, falling back to the hard-coded segments. */
+function wheelSegments(): readonly number[] {
+  const config = getGameConfig<{ segments: number[] }>('roulette');
+  return config?.segments ?? WHEEL_SEGMENTS;
+}
 
 export type SegmentColor = 'gold' | 'green' | 'blue' | 'gray';
 
@@ -75,8 +82,9 @@ export function segmentColor(multiplier: number): SegmentColor {
 
 /** Theoretical return-to-player for this wheel (0.90 = 90%). */
 export function wheelRtp(): number {
-  const total = WHEEL_SEGMENTS.reduce((sum, value) => sum + value, 0);
-  return total / SEGMENT_COUNT;
+  const segments = wheelSegments();
+  const total = segments.reduce((sum, value) => sum + value, 0);
+  return total / segments.length;
 }
 
 /** Wheel layout + odds, exposed so clients never hard-code a different table. */
@@ -86,8 +94,9 @@ export function wheelConfig(): {
   rtp: number;
   payouts: Array<{ multiplier: number; color: SegmentColor; chance: number }>;
 } {
+  const segments = wheelSegments();
   const counts = new Map<number, number>();
-  for (const segment of WHEEL_SEGMENTS) {
+  for (const segment of segments) {
     counts.set(segment, (counts.get(segment) ?? 0) + 1);
   }
 
@@ -96,12 +105,12 @@ export function wheelConfig(): {
     .map(([multiplier, count]) => ({
       multiplier,
       color: segmentColor(multiplier),
-      chance: count / SEGMENT_COUNT,
+      chance: count / segments.length,
     }));
 
   return {
-    segments: WHEEL_SEGMENTS,
-    segmentCount: SEGMENT_COUNT,
+    segments,
+    segmentCount: segments.length,
     rtp: wheelRtp(),
     payouts,
   };
@@ -117,13 +126,14 @@ export async function playSpin(userId: string, betAmount: number): Promise<SpinR
   const serverSeed = generateServerSeed();
   const clientSeed = generateClientSeed();
   const serverSeedHash = hashServerSeed(serverSeed);
+  const segments = wheelSegments();
   const segmentIndex = generateProvablyFairIndex(
     serverSeed,
     clientSeed,
     NONCE,
-    SEGMENT_COUNT,
+    segments.length,
   );
-  const multiplier = WHEEL_SEGMENTS[segmentIndex] ?? 0;
+  const multiplier = segments[segmentIndex] ?? 0;
   const payout = roundMoney(stake * multiplier);
   const won = multiplier > 0;
   const roundId = crypto.randomUUID();

@@ -4,11 +4,14 @@ import { adminGuard } from '../../common/middleware/adminGuard.js';
 import { authGuard } from '../../common/middleware/authGuard.js';
 import {
   approvePayment,
+  getGameConfig,
   getPayments,
   getStats,
   getTransactions,
   getUsers,
+  listGames,
   rejectPayment,
+  updateGameConfig,
 } from './admin.controller.js';
 
 export const adminRouter = Router();
@@ -24,6 +27,11 @@ adminRouter.get('/transactions', getTransactions);
 adminRouter.get('/payments', getPayments);
 adminRouter.post('/payments/:id/approve', approvePayment);
 adminRouter.post('/payments/:id/reject', rejectPayment);
+
+// Game configuration (RTP control).
+adminRouter.get('/games', listGames);
+adminRouter.get('/games/:id/config', getGameConfig);
+adminRouter.put('/games/:id/config', updateGameConfig);
 
 export default adminRouter;
 

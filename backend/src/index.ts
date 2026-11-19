@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import { errorHandler } from './common/middleware/errorHandler.js';
 import { CORS_ORIGIN, NODE_ENV, PORT, isProduction } from './config/env.js';
 import { pool } from './config/db.js';
+import { loadGameConfigs } from './modules/config/config.service.js';
 import { adminRouter } from './modules/admin/admin.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { blackjackRouter } from './modules/game/blackjack/blackjack.routes.js';
@@ -82,6 +83,13 @@ app.use('/api/admin', adminRouter);
 
 // Must stay last: Express only treats it as an error handler after all routes.
 app.use(errorHandler);
+
+// Load admin-tunable game configs into the in-memory cache. Fire-and-forget:
+// every game service falls back to its hard-coded constants until the rows are
+// loaded, so a DB hiccup here never takes the API down.
+void loadGameConfigs().catch((error: unknown) => {
+  console.error('[config] failed to load game configs:', error instanceof Error ? error.message : error);
+});
 
 const server = app.listen(PORT, () => {
   // eslint-disable-next-line no-console
