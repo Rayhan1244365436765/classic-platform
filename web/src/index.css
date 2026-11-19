@@ -2788,11 +2788,13 @@ button:not(:disabled):hover {
   .support {
     right: 14px;
     bottom: 92px;
+    flex-direction: row;
+    gap: 0.4rem;
   }
 
   .support__btn {
-    width: 42px;
-    height: 42px;
+    width: 44px;
+    height: 44px;
     font-size: 0.66rem;
   }
 
@@ -8269,7 +8271,10 @@ button:not(:disabled):hover {
   display: inline-flex;
   flex: none;
   align-items: center;
+  justify-content: center;
   gap: 0.3rem;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0.42rem 0.7rem;
   border: 1px solid rgb(255 255 255 / 12%);
   border-radius: 999px;
@@ -8587,6 +8592,33 @@ button:not(:disabled):hover {
 
   .gs__action-label {
     font-size: 0.85rem;
+  }
+}
+
+/* Very small phones (≤320px): the dock must never overflow, so shrink the
+   controls further and drop the non-essential fair-play caption. */
+@media (max-width: 320px) {
+  .gs-chip {
+    width: 44px;
+    height: 44px;
+    font-size: 0.6rem;
+  }
+
+  .gs__action {
+    width: 80px;
+    height: 80px;
+  }
+
+  .gs__chips {
+    gap: 0.3rem;
+  }
+
+  .gs__row {
+    gap: 0.3rem;
+  }
+
+  .rt__fair {
+    display: none;
   }
 }
 
