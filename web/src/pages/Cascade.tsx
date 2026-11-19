@@ -23,7 +23,7 @@ import { playSound } from '../utils/sound';
  */
 
 /** Preview stake used before the player types one. */
-const DEFAULT_BET = 1;
+const DEFAULT_BET = 5;
 
 /** Replay timings (ms). */
 const FALL_MS = 420;

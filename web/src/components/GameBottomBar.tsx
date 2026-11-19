@@ -2,6 +2,11 @@ import { useState, type ChangeEvent } from 'react';
 
 const DEFAULT_CHIPS = [5, 10, 20, 50];
 
+/** Custom bet ladder shared by every game: multiples of 5, from 5 up to 500. */
+const BET_STEP = 5;
+const BET_MIN = 5;
+const BET_MAX = 500;
+
 export type GameBottomBarProps = {
   betAmount: number;
   onBetChange: (amount: number) => void;
@@ -25,6 +30,12 @@ function money(value: number): string {
   })}`;
 }
 
+/** Rounds a bet to the nearest 5 and clamps it to [5, 500]. */
+function snapBet(value: number): number {
+  const stepped = Math.round(value / BET_STEP) * BET_STEP;
+  return Math.min(Math.max(stepped, BET_MIN), BET_MAX);
+}
+
 /**
  * The single control row shared by every game:
  *
@@ -45,14 +56,19 @@ export function GameBottomBar({
   chipsDisabled,
   chips = DEFAULT_CHIPS,
 }: GameBottomBarProps) {
-  const [draft, setDraft] = useState(() => String(betAmount));
+  const [draft, setDraft] = useState(() => String(snapBet(betAmount)));
 
   const left = chips.slice(0, Math.ceil(chips.length / 2));
   const right = chips.slice(Math.ceil(chips.length / 2));
 
+  function commitBet(value: number): void {
+    const snapped = snapBet(value);
+    setDraft(String(snapped));
+    onBetChange(snapped);
+  }
+
   function pickChip(chip: number): void {
-    setDraft(String(chip));
-    onBetChange(chip);
+    commitBet(chip);
   }
 
   function handleCustom(event: ChangeEvent<HTMLInputElement>): void {
@@ -61,8 +77,13 @@ export function GameBottomBar({
 
     const parsed = Number(value);
     if (Number.isFinite(parsed) && parsed > 0) {
-      onBetChange(Math.round(parsed * 100) / 100);
+      onBetChange(snapBet(parsed));
     }
+  }
+
+  function handleBlur(): void {
+    const parsed = Number(draft);
+    commitBet(Number.isFinite(parsed) && parsed > 0 ? parsed : BET_MIN);
   }
 
   function renderChip(chip: number) {
@@ -111,8 +132,10 @@ export function GameBottomBar({
           inputMode="decimal"
           value={draft}
           onChange={handleCustom}
-          min={0.5}
-          step={0.5}
+          onBlur={handleBlur}
+          min={BET_MIN}
+          max={BET_MAX}
+          step={BET_STEP}
           disabled={chipsDisabled ?? isPlaying}
           aria-label="Custom bet amount"
         />
