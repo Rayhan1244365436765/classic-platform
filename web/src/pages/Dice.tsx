@@ -2,6 +2,7 @@
 import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, DiceConfig, DicePrediction, DiceResult } from '../api/types';
 import { GameShell } from '../components/GameShell';
+import { GameResultOverlay } from '../components/GameResultOverlay';
 import { playSound } from '../utils/sound';
 
 /**
@@ -29,16 +30,6 @@ const FALLBACK_CONFIG: DiceConfig = {
 const ROLL_MS = 1000;
 /** Interval between flickered numbers. */
 const FLICKER_MS = 55;
-
-function money(value: number): string {
-  const rounded = Math.round(value * 100) / 100;
-  const fractionDigits = rounded % 1 === 0 ? 0 : 2;
-
-  return `$${rounded.toLocaleString('en-US', {
-    minimumFractionDigits: fractionDigits,
-    maximumFractionDigits: 2,
-  })}`;
-}
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -69,6 +60,7 @@ export default function Dice() {
   const [call, setCall] = useState<DicePrediction | null>(null);
   const [isRolling, setIsRolling] = useState(false);
   const [result, setResult] = useState<DiceResult | null>(null);
+  const [showWin, setShowWin] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const flickerTimer = useRef<number | null>(null);
@@ -143,6 +135,7 @@ export default function Dice() {
 
     setIsRolling(true);
     setResult(null);
+    setShowWin(false);
     setCall(prediction);
     playSound('click');
 
@@ -162,6 +155,7 @@ export default function Dice() {
       const data = response.data;
       setDisplay(data.roll);
       setResult(data);
+      if (data.won) setShowWin(true);
       playSound(data.won ? 'win' : 'lose');
       setBalance(data.balanceAfter);
       void refreshBalance();
@@ -282,27 +276,19 @@ export default function Dice() {
             </div>
           </div>
 
-          {result && !isRolling && (
-            <div
-              className={`dice-result${result.won ? ' dice-result--win' : ' dice-result--lose'}`}
-              role="status"
-              aria-live="polite"
-            >
-              <p className="dice-result__headline">
-                {result.won ? 'WINNER!' : result.roll === table.houseNumber ? 'House number!' : 'No luck'}
-              </p>
-              <p className="dice-result__amount">
-                {result.won ? `+${money(result.payout)}` : `-${money(result.betAmount)}`}
-              </p>
-              <p className="dice-result__caption">
-                Rolled {result.roll} · called {result.prediction.toUpperCase()}
-                {result.won
-                  ? ` · ${result.multiplier}× your bet`
-                  : result.roll === table.houseNumber
-                    ? ' · 50 loses either way'
-                    : ''}
-              </p>
-            </div>
+          {result && (
+            <GameResultOverlay
+              isOpen={showWin}
+              isWin={result.won}
+              amount={result.won ? result.payout : 0}
+              multiplier={result.won ? result.multiplier : 0}
+              detail={
+                result.won
+                  ? `Rolled ${result.roll} · called ${result.prediction.toUpperCase()} · ${result.multiplier}× your bet`
+                  : undefined
+              }
+              onClose={() => setShowWin(false)}
+            />
           )}
 
           <p className="rt__fair">Provably fair · seed hash published before every roll</p>

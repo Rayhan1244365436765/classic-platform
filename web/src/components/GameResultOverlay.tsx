@@ -2,17 +2,20 @@ import { useEffect, useMemo, useRef, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 
 /**
- * Non-blocking game-result toast — the standard win/loss notification for every
- * game. It is the Showdown ("Cascade") celebration, generalized: the exact gold
- * card, confetti, star twinkle, spring/bounce and countdown-bar animations from
- * `WinModal` are reused, now with a loss variant and a multiplier badge.
+ * Non-blocking **win** toast — the standard celebration for every game. It is
+ * the Showdown ("Cascade") win dialog, generalized: the exact gold card,
+ * confetti, star twinkle, spring/bounce and countdown-bar animations from
+ * `WinModal` are reused, plus a multiplier badge and an optional detail line.
  *
- * Unlike `WinModal`, it is **click-transparent**: the wrapper is
- * `pointer-events: none`, so the player can hit SPIN / the bottom bar / the
- * board while the message is on screen. It renders through a portal to `<body>`
- * so no game container can clip or transform it, and it dismisses itself after
- * `durationMs` (the thin bar along the bottom edge is that countdown). The timer
- * is cleared on close/unmount so it never fires twice.
+ * Losses are silent: when `isWin` is false the component renders nothing, which
+ * keeps the loop positive and uninterrupted.
+ *
+ * It is **click-transparent**: the wrapper is `pointer-events: none`, so the
+ * player can hit SPIN / the bottom bar / the board while the message is on
+ * screen. It renders through a portal to `<body>` so no game container can clip
+ * or transform it, and it dismisses itself after `durationMs` (the thin bar
+ * along the bottom edge is that countdown). The timer is cleared on
+ * close/unmount so it never fires twice.
  *
  * Accessibility: `role="status"` (an implicit polite live region) announces the
  * outcome without stealing focus or scroll — no `aria-modal`, because nothing is
@@ -21,11 +24,11 @@ import { createPortal } from 'react-dom';
 
 type GameResultOverlayProps = {
   isOpen: boolean;
-  /** True → "CONGRATULATIONS!" gold card; false → "BETTER LUCK NEXT TIME". */
+  /** Must be true for the overlay to render — losses show nothing. */
   isWin: boolean;
-  /** Absolute amount: the payout on a win, the stake on a loss. */
+  /** Amount won (already credited), shown as `+$X.XX`. */
   amount: number;
-  /** The multiplier that hit (0 on a loss). Drives the `×N` badge. */
+  /** The multiplier that hit. Drives the `×N` badge. */
   multiplier: number;
   /** Optional secondary line under the amount (game-specific detail). */
   detail?: string;
@@ -107,55 +110,48 @@ export function GameResultOverlay({
   }, [onClose]);
 
   useEffect(() => {
-    if (!isOpen) return undefined;
+    if (!isOpen || !isWin) return undefined;
 
     const close = window.setTimeout(() => closeRef.current(), durationMs);
     return () => window.clearTimeout(close);
-  }, [isOpen, durationMs]);
+  }, [isOpen, isWin, durationMs]);
 
   // Built once per opening so re-renders don't reshuffle the confetti mid-fall.
   const confetti = useMemo(() => (isOpen && isWin ? buildConfetti() : []), [isOpen, isWin]);
 
-  if (!isOpen) return null;
-
-  const signed = `${isWin ? '+' : '-'}${formatMoney(amount)}`;
+  // Win-only celebration: losses are silent.
+  if (!isOpen || !isWin) return null;
 
   return createPortal(
     <div
-      className={`game-result${isWin ? ' game-result--win' : ' game-result--lose'}`}
+      className="game-result game-result--win"
       role="status"
       style={{ animationDuration: `${durationMs}ms` }}
     >
       <div className="game-result__backdrop" aria-hidden="true" />
 
-      {isWin && (
-        <div className="game-result__confetti" aria-hidden="true">
-          {confetti.map((piece, index) => (
-            <span key={index} style={confettiStyle(piece)} />
-          ))}
-        </div>
-      )}
+      <div className="game-result__confetti" aria-hidden="true">
+        {confetti.map((piece, index) => (
+          <span key={index} style={confettiStyle(piece)} />
+        ))}
+      </div>
 
       <div className="game-result__card">
         <div className="game-result__glow" aria-hidden="true" />
 
-        {isWin && (
-          <div className="game-result__stars" aria-hidden="true">
-            <span>★</span>
-            <span>★</span>
-            <span>★</span>
-          </div>
-        )}
+        <div className="game-result__stars" aria-hidden="true">
+          <span>★</span>
+          <span>★</span>
+          <span>★</span>
+        </div>
 
-        <h2 className="game-result__title">
-          {isWin ? 'CONGRATULATIONS!' : 'BETTER LUCK NEXT TIME'}
-        </h2>
+        <h2 className="game-result__title">CONGRATULATIONS!</h2>
 
-        <p className="game-result__caption">{isWin ? 'You won' : 'You lost'}</p>
+        <p className="game-result__caption">You won</p>
 
-        {multiplier > 0 && <span className="game-result__mult">{formatMultiplier(multiplier)}</span>}
+        <span className="game-result__mult">{formatMultiplier(multiplier)}</span>
 
-        <p className="game-result__amount">{signed}</p>
+        <p className="game-result__amount">+{formatMoney(amount)}</p>
 
         {detail && <p className="game-result__detail">{detail}</p>}
 

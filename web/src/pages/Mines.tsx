@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, MinesCashout, MinesReveal, MinesStart } from '../api/types';
 import { GameShell } from '../components/GameShell';
+import { GameResultOverlay } from '../components/GameResultOverlay';
 import { playSound } from '../utils/sound';
 
 /**
@@ -62,6 +63,7 @@ export default function Mines() {
   const [multiplier, setMultiplier] = useState(1);
   const [payout, setPayout] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [showWin, setShowWin] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refreshBalance = useCallback(async () => {
@@ -124,6 +126,7 @@ export default function Mines() {
     setBombIndex(null);
     setMultiplier(1);
     setPayout(0);
+    setShowWin(false);
   }
 
   async function startGame() {
@@ -194,6 +197,7 @@ export default function Mines() {
         setStatus('won');
         setMines(data.mines ?? []);
         setPayout(data.payout);
+        setShowWin(true);
         playSound('win');
       } else {
         playSound('click');
@@ -222,6 +226,7 @@ export default function Mines() {
       setMines(data.mines);
       setRevealed(data.revealedTiles);
       setBalance(data.balanceAfter);
+      setShowWin(true);
       playSound('win');
       void refreshBalance();
     } catch (requestError) {
@@ -325,23 +330,14 @@ export default function Mines() {
           </div>
         </div>
 
-        {settled && (
-          <div
-            className={`mines-result${status === 'won' ? ' mines-result--win' : ' mines-result--lose'}`}
-            role="status"
-            aria-live="polite"
-          >
-            <p className="mines-result__headline">{status === 'won' ? 'Cashed out!' : 'BOOM!'}</p>
-            <p className="mines-result__amount">
-              {status === 'won' ? `+${money(payout)}` : `-${money(stake)}`}
-            </p>
-            <p className="mines-result__caption">
-              {status === 'won'
-                ? `${revealed.length} gems at ${multiplier.toFixed(2)}× your bet`
-                : `You hit a mine after ${revealed.length} gem${revealed.length === 1 ? '' : 's'}`}
-            </p>
-          </div>
-        )}
+        <GameResultOverlay
+          isOpen={showWin}
+          isWin={status === 'won'}
+          amount={status === 'won' ? payout : 0}
+          multiplier={status === 'won' ? multiplier : 0}
+          detail={status === 'won' ? `${revealed.length} gems at ${multiplier.toFixed(2)}× your bet` : undefined}
+          onClose={() => setShowWin(false)}
+        />
 
         <p className="rt__fair">
           {active

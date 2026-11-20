@@ -5361,10 +5361,6 @@ button:not(:disabled):hover {
   backdrop-filter: blur(6px);
 }
 
-.game-result--lose .game-result__backdrop {
-  background: rgb(18 8 10 / 58%);
-}
-
 .game-result__confetti {
   position: absolute;
   inset: 0;
@@ -5426,15 +5422,6 @@ button:not(:disabled):hover {
     0 0 70px rgb(212 175 55 / 22%);
 }
 
-.game-result--lose .game-result__card {
-  background:
-    linear-gradient(180deg, #1c1417, #0c0a0d) padding-box,
-    linear-gradient(140deg, #5b2a33, #3a1c22 40%, #241317 70%, #4a2a30 100%) border-box;
-  box-shadow:
-    0 0 0 1px rgb(239 68 68 / 16%),
-    0 30px 80px rgb(0 0 0 / 65%);
-}
-
 .game-result__glow {
   position: absolute;
   inset: -45% 8% auto;
@@ -5443,10 +5430,6 @@ button:not(:disabled):hover {
 
 .game-result--win .game-result__glow {
   background: radial-gradient(closest-side, rgb(212 175 55 / 32%), transparent 70%);
-}
-
-.game-result--lose .game-result__glow {
-  background: radial-gradient(closest-side, rgb(239 68 68 / 20%), transparent 70%);
 }
 
 .game-result__stars {
@@ -5499,11 +5482,6 @@ button:not(:disabled):hover {
   text-shadow: 0 0 22px rgb(212 175 55 / 45%);
 }
 
-.game-result--lose .game-result__title {
-  color: #f5dddd;
-  text-shadow: 0 0 18px rgb(239 68 68 / 25%);
-}
-
 .game-result__caption {
   position: relative;
   margin: 0.6rem 0 0;
@@ -5546,11 +5524,6 @@ button:not(:disabled):hover {
   filter: drop-shadow(0 6px 22px rgb(212 175 55 / 35%));
 }
 
-.game-result--lose .game-result__amount {
-  color: #f87171;
-  filter: drop-shadow(0 6px 18px rgb(239 68 68 / 25%));
-}
-
 @keyframes game-result-amount-in {
   0% {
     opacity: 0;
@@ -5591,10 +5564,6 @@ button:not(:disabled):hover {
   animation-name: game-result-timer;
   animation-timing-function: linear;
   animation-fill-mode: forwards;
-}
-
-.game-result--lose .game-result__timer span {
-  background: linear-gradient(90deg, #f87171, #b91c1c 60%, #7f1d1d);
 }
 
 @keyframes game-result-timer {

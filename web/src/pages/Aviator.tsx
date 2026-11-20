@@ -10,6 +10,7 @@ import type {
 } from '../api/types';
 import { ArrowLeftIcon, WalletIcon } from '../components/Icons';
 import { GameBottomBar } from '../components/GameBottomBar';
+import { GameResultOverlay } from '../components/GameResultOverlay';
 import { LivePlayerBadge } from '../components/LivePlayerBadge';
 import { SoundToggle } from '../components/SoundToggle';
 import {
@@ -552,6 +553,7 @@ export default function Aviator() {
   const [roundId, setRoundId] = useState<string | null>(null);
   const [seedHash, setSeedHash] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<AviatorOutcome | null>(null);
+  const [showWin, setShowWin] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   /** Plane position in canvas units — drives both the DOM jet and the trail. */
@@ -735,6 +737,7 @@ export default function Aviator() {
     }
 
     setOutcome(null);
+    setShowWin(false);
     setMultiplier(1);
     multiplierRef.current = 1;
     setPlane({ ...RUNWAY, angle: 0 });
@@ -790,6 +793,7 @@ export default function Aviator() {
       setMultiplier(data.status === 'cashed_out' ? data.multiplier : data.crashPoint);
       setBalance(data.balanceAfter);
       setPhase(data.status === 'cashed_out' ? 'cashed_out' : 'crashed');
+      if (data.status === 'cashed_out') setShowWin(true);
 
       stopFlightTone();
       playSound(data.status === 'cashed_out' ? 'win' : 'crash');
@@ -883,29 +887,18 @@ export default function Aviator() {
             </div>
           </div>
 
-          {outcome && (phase === 'cashed_out' || phase === 'crashed') && (
-            <div
-              className={`aviator-result${
-                outcome.status === 'cashed_out' ? ' aviator-result--win' : ' aviator-result--lose'
-              }`}
-              role="status"
-              aria-live="polite"
-            >
-              <p className="aviator-result__headline">
-                {outcome.status === 'cashed_out' ? 'You won!' : 'CRASHED!'}
-              </p>
-              <p className="aviator-result__amount">
-                {outcome.status === 'cashed_out'
-                  ? `+${money(outcome.payout)}`
-                  : `-${money(outcome.betAmount)}`}
-              </p>
-              <p className="aviator-result__caption">
-                {outcome.status === 'cashed_out'
-                  ? `Cashed out at ${outcome.multiplier.toFixed(2)}x · plane burst at ${outcome.crashPoint.toFixed(2)}x`
-                  : `The plane flew away at ${outcome.crashPoint.toFixed(2)}x`}
-              </p>
-            </div>
-          )}
+          <GameResultOverlay
+            isOpen={showWin}
+            isWin={outcome?.status === 'cashed_out'}
+            amount={outcome?.payout ?? 0}
+            multiplier={outcome?.multiplier ?? 0}
+            detail={
+              outcome?.status === 'cashed_out'
+                ? `Cashed out at ${outcome.multiplier.toFixed(2)}x · plane burst at ${outcome.crashPoint.toFixed(2)}x`
+                : undefined
+            }
+            onClose={() => setShowWin(false)}
+          />
 
           <p className="rt__fair">
             {roundId
