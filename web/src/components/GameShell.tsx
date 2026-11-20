@@ -66,7 +66,9 @@ export function GameShell({
   balanceError = null,
 }: GameShellProps) {
   return (
-    <div className={`gs${controls ? ' gs--wide-bar' : ''}`}>
+    <div className="phone-stage">
+      <div className="phone-frame">
+        <div className={`gs${controls ? ' gs--wide-bar' : ''}`}>
       <header className="gs__top">
         <button type="button" className="gs__back" onClick={onBack}>
           <ArrowLeftIcon className="icon icon--sm" />
@@ -103,6 +105,8 @@ export function GameShell({
           chips={chips}
         />
       </footer>
+    </div>
+      </div>
     </div>
   );
 }

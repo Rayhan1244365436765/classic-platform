@@ -327,7 +327,9 @@ export default function Dice3D() {
   }
 
   return (
-    <div className="rt rt--d3d">
+    <div className="phone-stage">
+      <div className="phone-frame">
+        <div className="rt rt--d3d">
       <header className="rt__topbar">
         <Link to="/" className="rt__back">
           <ArrowLeftIcon className="icon icon--sm" />
@@ -446,6 +448,8 @@ export default function Dice3D() {
           onClose={() => setShowWin(false)}
         />
       )}
+        </div>
+      </div>
     </div>
   );
 }

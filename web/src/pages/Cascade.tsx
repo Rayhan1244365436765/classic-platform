@@ -274,7 +274,9 @@ export default function Cascade() {
               : 'Press SPIN to play';
 
   return (
-    <div className="rt rt--cascade">
+    <div className="phone-stage">
+      <div className="phone-frame">
+        <div className="rt rt--cascade">
       <header className="rt__topbar">
         <Link to="/" className="rt__back">
           <ArrowLeftIcon className="icon icon--sm" />
@@ -382,6 +384,8 @@ export default function Cascade() {
         detail={result && result.payout > 0 ? `${result.cascadeCount} cascade${result.cascadeCount === 1 ? '' : 's'}` : undefined}
         onClose={() => setShowWin(false)}
       />
+    </div>
+      </div>
     </div>
   );
 }

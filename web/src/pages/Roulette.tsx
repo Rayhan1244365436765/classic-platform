@@ -254,7 +254,9 @@ export default function Roulette() {
   const previewStake = stake > 0 ? stake : DEFAULT_BET;
 
   return (
-    <div className="rt rt--spin">
+    <div className="phone-stage">
+      <div className="phone-frame">
+        <div className="rt rt--spin">
       <header className="rt__topbar">
         <Link to="/" className="rt__back">
           <ArrowLeftIcon className="icon icon--sm" />
@@ -345,6 +347,8 @@ export default function Roulette() {
           isPlaying={isSpinning}
         />
       </footer>
+    </div>
+      </div>
     </div>
   );
 }

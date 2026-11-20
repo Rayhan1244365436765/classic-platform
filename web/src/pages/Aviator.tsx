@@ -820,7 +820,9 @@ export default function Aviator() {
   };
 
   return (
-    <div className="rt rt--aviator">
+    <div className="phone-stage">
+      <div className="phone-frame">
+        <div className="rt rt--aviator">
       <header className="rt__topbar">
         <Link to="/" className="rt__back">
           <ArrowLeftIcon className="icon icon--sm" />
@@ -921,6 +923,8 @@ export default function Aviator() {
           chipsDisabled={busy || flying}
         />
       </footer>
+    </div>
+      </div>
     </div>
   );
 }
