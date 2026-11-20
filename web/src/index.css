@@ -2175,6 +2175,125 @@ button:not(:disabled):hover {
   border-color: rgb(212 175 55 / 45%);
 }
 
+/* ---------- Featured tile (Fire Roulette) ---------- */
+/* The roulette card becomes a square, fire-lit hero: a CSS/SVG wheel spins on
+   the compositor (transform only) while flame gradients flicker (opacity +
+   transform) and a fire glow pulses on the border. */
+.game-card {
+  align-self: start;
+}
+
+.game-card--featured {
+  animation: game-card-featured-glow 2.2s ease-in-out infinite;
+}
+
+.game-card__art.game-card__art--fire {
+  height: auto;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 118%, rgb(255 88 22 / 55%), transparent 70%),
+    linear-gradient(180deg, #2b0507 0%, #110203 100%);
+}
+
+/* Flames licking up from the bottom edge. */
+.game-card__art.game-card__art--fire::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 100%;
+  background:
+    radial-gradient(58% 88% at 10% 112%, rgb(255 216 89 / 95%) 0%, rgb(255 122 26 / 55%) 34%, transparent 68%),
+    radial-gradient(52% 94% at 32% 116%, rgb(255 179 0 / 90%) 0%, rgb(255 90 31 / 50%) 36%, transparent 70%),
+    radial-gradient(58% 100% at 55% 114%, rgb(255 216 89 / 90%) 0%, rgb(255 122 26 / 55%) 34%, transparent 68%),
+    radial-gradient(52% 90% at 78% 118%, rgb(255 179 0 / 85%) 0%, rgb(255 90 31 / 50%) 36%, transparent 70%),
+    radial-gradient(58% 82% at 97% 112%, rgb(255 138 26 / 85%) 0%, rgb(255 60 20 / 45%) 40%, transparent 72%);
+  animation: fire-flames 1s ease-in-out infinite;
+}
+
+/* Wheel area: the round wheel centered, with the ball marker fixed at the top. */
+.fire-wheel-wrap {
+  position: relative;
+  z-index: 1;
+  width: 74%;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  box-shadow:
+    0 0 26px rgb(255 96 24 / 32%),
+    0 10px 28px rgb(0 0 0 / 55%);
+}
+
+.fire-wheel {
+  display: block;
+  width: 100%;
+  height: 100%;
+  will-change: transform;
+  animation: fire-wheel-spin 6s linear infinite;
+}
+
+.fire-wheel__ball {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -40%);
+  width: 9%;
+  height: 9%;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 6px rgb(255 255 255 / 85%);
+}
+
+@keyframes fire-wheel-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fire-flames {
+  0%,
+  100% {
+    opacity: 0.82;
+    transform: scaleY(0.94);
+  }
+
+  45% {
+    opacity: 1;
+    transform: scaleY(1.06);
+  }
+
+  70% {
+    opacity: 0.9;
+    transform: scaleY(0.98);
+  }
+}
+
+@keyframes game-card-featured-glow {
+  0%,
+  100% {
+    border-color: rgb(255 92 24 / 55%);
+    box-shadow:
+      0 0 0 1px rgb(255 92 24 / 30%),
+      0 0 16px rgb(255 92 24 / 28%),
+      0 0 36px rgb(200 30 16 / 22%);
+  }
+
+  50% {
+    border-color: rgb(255 140 40 / 95%);
+    box-shadow:
+      0 0 0 1px rgb(255 140 40 / 60%),
+      0 0 28px rgb(255 120 30 / 55%),
+      0 0 58px rgb(220 40 18 / 45%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-card--featured,
+  .fire-wheel,
+  .game-card__art.game-card__art--fire::before {
+    animation: none;
+  }
+}
+
 .game-card__art {
   position: relative;
   display: grid;
@@ -5058,7 +5177,7 @@ button:not(:disabled):hover {
   place-items: center;
   padding: 1rem;
   pointer-events: none;
-  animation: game-result-life 2400ms ease-in-out both;
+  animation: game-result-life 1200ms ease-in-out both;
 }
 
 .game-result__backdrop {
@@ -5283,6 +5402,8 @@ button:not(:disabled):hover {
   }
 }
 
+/* 1200ms total: ~100ms fade in, hold, then a ~200ms fade out that ends exactly
+   when the component's timer closes the toast. */
 @keyframes game-result-life {
   0% {
     opacity: 0;
@@ -5292,7 +5413,7 @@ button:not(:disabled):hover {
     opacity: 1;
   }
 
-  88% {
+  83% {
     opacity: 1;
   }
 
@@ -9006,4 +9127,86 @@ button:not(:disabled):hover {
   border-top: 1px solid rgb(240 194 74 / 32%);
   background: linear-gradient(180deg, #10141d 0%, #06080d 100%);
   box-shadow: 0 -18px 44px rgb(0 0 0 / 70%);
+}
+
+/* ---------- Showdown: the board fills the screen ----------
+   One screen tall (the phone frame supplies its own height on desktop), the
+   header and the fixed dock take their share, and the cabinet takes everything
+   left between them — centered, never scrolling. These rules replace the
+   phones-only fixed-height cabinet so desktop frame and real phones match. */
+.rt--cascade {
+  height: 100svh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.rt--cascade .rt__body {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0.5rem 0.4rem 170px;
+}
+
+.rt--cascade .rt__stage {
+  flex: 1 1 auto;
+  align-items: stretch;
+  justify-content: center;
+  min-height: 0;
+  width: 100%;
+  gap: 0.3rem;
+}
+
+.rt--cascade .cs-cabinet {
+  flex: 1 1 auto;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  max-height: 760px;
+  margin: 0 auto;
+  gap: 0.4rem;
+  padding: 0.45rem 0.4rem 0.5rem;
+  border-radius: 18px;
+}
+
+/* Multiplier ladder: always visible, one row, sized to fit five pills. */
+.rt--cascade .cs-multipliers {
+  flex: none;
+  gap: 0.3rem;
+}
+
+.rt--cascade .cs-multiplier {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 64px;
+  padding: 0.2rem 0.3rem;
+  font-size: 0.66rem;
+}
+
+/* Fixed N × M tracks share the cabinet's height; tiles stretch to fill them. */
+.rt--cascade .cs-grid {
+  flex: 1 1 0;
+  min-height: 0;
+  gap: 0.3rem;
+}
+
+.rt--cascade .cs-status {
+  flex: none;
+}
+
+/* Each tile is a size container, so its symbol is sized from the tile itself:
+   ~76% of its width (an emoji is about 1em wide) or ~60% of its height,
+   whichever is smaller — big, centered, and never touching the border. */
+.rt--cascade .cs-tile {
+  aspect-ratio: auto;
+  min-height: 0;
+  height: auto;
+  border-radius: 12px;
+  container-type: size;
+}
+
+.rt--cascade .cs-tile__glyph {
+  font-size: clamp(1.4rem, min(60cqh, 76cqw), 5rem);
+  line-height: 1;
+  text-align: center;
 }

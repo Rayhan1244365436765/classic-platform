@@ -32,6 +32,15 @@ let flightGain: GainNode | null = null;
 
 const listeners = new Set<Listener>();
 
+/**
+ * Per-call loudness multiplier for the synthesized effects (blips and noise).
+ * `playSound` sets it for the duration of one call (the sounds are scheduled
+ * synchronously) and always resets it to 1, so nothing leaks between games.
+ */
+let sfxScale = 1;
+/** Hard ceiling for a single note's peak, so boosted effects can't clip. */
+const MAX_PEAK = 0.8;
+
 function readMuted(): boolean {
   try {
     return window.localStorage.getItem(STORAGE_KEY) === '1';
@@ -153,7 +162,7 @@ function blip(ctx: AudioContext, options: BlipOptions): void {
     osc.frequency.exponentialRampToValueAtTime(Math.max(20, options.to), at + options.duration);
   }
 
-  const peak = Math.max(0.0005, options.peak ?? 0.22);
+  const peak = Math.min(MAX_PEAK, Math.max(0.0005, (options.peak ?? 0.22) * sfxScale));
   gain.gain.setValueAtTime(0.0001, at);
   gain.gain.exponentialRampToValueAtTime(peak, at + 0.012);
   gain.gain.exponentialRampToValueAtTime(0.0001, at + options.duration);
@@ -189,7 +198,7 @@ function noiseBurst(ctx: AudioContext, duration = 0.6): void {
   filter.frequency.exponentialRampToValueAtTime(160, at + duration);
 
   const gain = ctx.createGain();
-  gain.gain.setValueAtTime(0.5, at);
+  gain.gain.setValueAtTime(Math.min(MAX_PEAK, 0.55 * sfxScale), at);
   gain.gain.exponentialRampToValueAtTime(0.0001, at + duration);
 
   source.connect(filter);
@@ -204,7 +213,7 @@ function tick(ctx: AudioContext, progress: number): void {
     freq: 940 - progress * 260,
     duration: 0.035,
     type: 'square',
-    peak: 0.1 - progress * 0.05,
+    peak: 0.16 - progress * 0.08,
   });
 }
 
@@ -336,7 +345,7 @@ export function startFlightTone(): void {
   osc.frequency.value = 150;
 
   const gain = ctx.createGain();
-  gain.gain.value = 0.03;
+  gain.gain.value = 0.05;
 
   osc.connect(filter);
   filter.connect(gain);
@@ -376,6 +385,8 @@ export function stopFlightTone(): void {
   }
 }
 
+type SoundOptions = { durationMs?: number; volume?: number; pitch?: number; gain?: number };
+
 /**
  * Play a game sound.
  *
@@ -383,11 +394,24 @@ export function stopFlightTone(): void {
  * for exactly as long as it spins. `punch` accepts `volume` (0–1) and `pitch`
  * (a frequency multiplier: 0.8 is heavy, 1.1 is light) so the same impact can
  * land differently every time it is used.
+ *
+ * `gain` (default 1) scales the loudness of `click`, `win`, `lose` and `crash`
+ * for that one call, so a single game can run its effects louder without
+ * touching the master volume or any other game. Each note's peak is capped, so
+ * large values get no louder than the cap rather than distorting. It does not
+ * apply to `spin` ticks (scheduled later) or `punch` (which has `volume`).
  */
-export function playSound(
-  type: SoundType,
-  options: { durationMs?: number; volume?: number; pitch?: number } = {},
-): void {
+export function playSound(type: SoundType, options: SoundOptions = {}): void {
+  sfxScale = Math.max(0, options.gain ?? 1);
+
+  try {
+    playSoundNow(type, options);
+  } finally {
+    sfxScale = 1;
+  }
+}
+
+function playSoundNow(type: SoundType, options: SoundOptions): void {
   if (muted) {
     return;
   }
@@ -400,8 +424,8 @@ export function playSound(
   switch (type) {
     case 'click': {
       // Two very short high blips — a crisp UI tick.
-      blip(ctx, { freq: 1250, duration: 0.05, type: 'triangle', peak: 0.2 });
-      blip(ctx, { freq: 1850, duration: 0.03, type: 'triangle', peak: 0.1, delay: 0.03 });
+      blip(ctx, { freq: 1250, duration: 0.05, type: 'triangle', peak: 0.35 });
+      blip(ctx, { freq: 1850, duration: 0.03, type: 'triangle', peak: 0.18, delay: 0.03 });
       break;
     }
 
@@ -422,25 +446,25 @@ export function playSound(
           freq,
           duration: 0.16,
           type: 'triangle',
-          peak: 0.24,
+          peak: 0.45,
           delay: index * 0.085,
         });
       });
-      blip(ctx, { freq: 2093, duration: 0.22, type: 'sine', peak: 0.1, delay: 0.34 });
+      blip(ctx, { freq: 2093, duration: 0.22, type: 'sine', peak: 0.18, delay: 0.34 });
       break;
     }
 
     case 'lose': {
       // Two descending saw tones, low and dull.
-      blip(ctx, { freq: 330, to: 220, duration: 0.24, type: 'sawtooth', peak: 0.16 });
-      blip(ctx, { freq: 220, to: 130, duration: 0.36, type: 'sawtooth', peak: 0.14, delay: 0.2 });
+      blip(ctx, { freq: 330, to: 220, duration: 0.24, type: 'sawtooth', peak: 0.3 });
+      blip(ctx, { freq: 220, to: 130, duration: 0.36, type: 'sawtooth', peak: 0.25, delay: 0.2 });
       break;
     }
 
     case 'crash': {
       noiseBurst(ctx, 0.6);
       // Sub-bass thump under the noise.
-      blip(ctx, { freq: 120, to: 45, duration: 0.35, type: 'sine', peak: 0.3 });
+      blip(ctx, { freq: 120, to: 45, duration: 0.35, type: 'sine', peak: 0.45 });
       break;
     }
 

@@ -27,6 +27,7 @@ import {
 import { Modal } from '../components/Modal';
 import { LivePlayerBadge } from '../components/LivePlayerBadge';
 import { SoundToggle } from '../components/SoundToggle';
+import { FireRouletteWheel } from '../components/FireRouletteWheel';
 import { playSound } from '../utils/sound';
 import { useAuth } from '../context/auth-context';
 
@@ -48,7 +49,7 @@ type Game = {
 };
 
 const GAMES: Game[] = [
-  { id: 'roulette', title: 'Spin to Win', category: 'live', color: 'linear-gradient(135deg,#d4af37,#7c5a10)', icon: '🎡', active: true, badge: 'LIVE', path: '/roulette' },
+  { id: 'roulette', title: 'Spin to Win', category: 'live', color: 'linear-gradient(160deg,#ffe08a 0%,#d4af37 34%,#c2410c 76%,#7c1d12 100%)', icon: '🎡', active: true, badge: 'LIVE', path: '/roulette' },
   { id: 'lucky-slots', title: 'Lucky Slots', category: 'slot', color: 'linear-gradient(135deg,#7c3aed,#2b1055)', icon: '🍒', active: true, badge: 'NEW', path: '/slots' },
   { id: 'dice', title: 'Dice', category: 'live', color: 'linear-gradient(135deg,#0e7490,#0f2f3d)', icon: '🎲', active: true, badge: 'NEW', path: '/dice' },
   { id: 'dice3d', title: '3D Dice 🎲', category: 'live', color: 'linear-gradient(135deg,#0f766e,#062a26)', icon: '🎲', active: true, badge: 'NEW', path: '/dice3d' },
@@ -333,13 +334,13 @@ export default function Lobby() {
                 <button
                   key={game.id}
                   type="button"
-                  className={`game-card${game.active ? ' game-card--active' : ''}`}
+                  className={`game-card${game.active ? ' game-card--active' : ''}${game.id === 'roulette' ? ' game-card--featured' : ''}`}
                   onClick={() => openGame(game)}
                   aria-label={`${game.title} (${game.active ? 'play' : 'coming soon'})`}
                 >
                   <span
-                    className="game-card__art"
-                    style={{ backgroundImage: game.color }}
+                    className={`game-card__art${game.id === 'roulette' ? ' game-card__art--fire' : ''}`}
+                    style={game.id === 'roulette' ? undefined : { backgroundImage: game.color }}
                   >
                     {game.badge && (
                       <span
@@ -350,9 +351,13 @@ export default function Lobby() {
                         {game.badge}
                       </span>
                     )}
-                    <span className="game-card__emoji" aria-hidden="true">
-                      {game.icon}
-                    </span>
+                    {game.id === 'roulette' ? (
+                      <FireRouletteWheel />
+                    ) : (
+                      <span className="game-card__emoji" aria-hidden="true">
+                        {game.icon}
+                      </span>
+                    )}
                     {!game.active && (
                       <span className="game-card__lock" aria-hidden="true">
                         🔒

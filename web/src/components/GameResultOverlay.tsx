@@ -38,8 +38,13 @@ type GameResultOverlayProps = {
   durationMs?: number;
 };
 
-/** Keep the fast loop snappy but readable — inside the requested 2–3 s window. */
-export const GAME_RESULT_DURATION_MS = 2400;
+/**
+ * How long the win toast stays up: a quick beat, a bit over a second, so the
+ * fast loop stays snappy. The CSS fallback in `.game-result` and the
+ * `game-result-life` / `game-result-timer` keyframes are percentage/duration
+ * based, so they follow this value (the component sets the durations inline).
+ */
+export const GAME_RESULT_DURATION_MS = 1200;
 
 /** `52` → `$52.00`, `1534.5` → `$1,534.50` (same as the Showdown dialog). */
 function formatMoney(value: number): string {

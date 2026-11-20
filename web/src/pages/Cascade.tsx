@@ -8,6 +8,7 @@ import { LivePlayerBadge } from '../components/LivePlayerBadge';
 import { SoundToggle } from '../components/SoundToggle';
 import { GameBottomBar } from '../components/GameBottomBar';
 import { GameResultOverlay } from '../components/GameResultOverlay';
+import { useAudio } from '../context/audio-context';
 import { playSound } from '../utils/sound';
 
 /**
@@ -24,6 +25,8 @@ import { playSound } from '../utils/sound';
 
 /** Preview stake used before the player types one. */
 const DEFAULT_BET = 5;
+/** Showdown-only loudness boost for its click / win / lose effects (1 = normal). */
+const SFX_GAIN = 1.6;
 
 /** Replay timings (ms). */
 const FALL_MS = 420;
@@ -135,6 +138,15 @@ export default function Cascade() {
     };
   }, []);
 
+  // Background music: a looping bed starts on arrival and stops on leave. The
+  // BGM engine follows the global mute toggle, so 🔊/🔇 silences it too.
+  const { playBgTrack, stopBgTrack } = useAudio();
+
+  useEffect(() => {
+    playBgTrack('/audio/showdown.mp3', { loop: true, volume: 0.4 });
+    return () => stopBgTrack();
+  }, [playBgTrack, stopBgTrack]);
+
   const refreshBalance = useCallback(async () => {
     try {
       setBalance(await fetchBalance());
@@ -199,7 +211,7 @@ export default function Cascade() {
     setShowWin(false);
     setActiveStep(-1);
     setWinning(new Set());
-    playSound('click');
+    playSound('click', { gain: SFX_GAIN });
 
     try {
       const { data } = await api.post<CascadeResult>('/game/cascade/play', {
@@ -222,7 +234,7 @@ export default function Cascade() {
         setActiveStep(index);
         setWinning(new Set(step.clusters.flatMap((cluster) => cluster.cells)));
         setPhase('winning');
-        playSound('click');
+        playSound('click', { gain: SFX_GAIN });
         await delay(WIN_MS);
         if (unmounted.current) return;
 
@@ -245,7 +257,7 @@ export default function Cascade() {
       setPhase('done');
       setActiveStep(-1);
       setResult(data);
-      playSound(data.payout > 0 ? 'win' : 'lose');
+      playSound(data.payout > 0 ? 'win' : 'lose', { gain: SFX_GAIN });
 
       // Celebrate every win, however small — the dialog is part of the loop.
       if (data.payout > 0) setShowWin(true);
@@ -322,7 +334,10 @@ export default function Cascade() {
             <div
               className="cs-grid"
               key={boardKey}
-              style={{ gridTemplateColumns: `repeat(${config.cols}, minmax(0, 1fr))` }}
+              style={{
+                gridTemplateColumns: `repeat(${config.cols}, minmax(0, 1fr))`,
+                gridTemplateRows: `repeat(${config.rows}, minmax(0, 1fr))`,
+              }}
               role="img"
               aria-label={`${config.cols} by ${config.rows} grid`}
             >
