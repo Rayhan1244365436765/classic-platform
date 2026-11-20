@@ -214,11 +214,12 @@ export default function Slots() {
     onSpin: () => void handleSpin(),
     spinLabel: 'SPIN',
     isSpinning,
+    fill: true,
   };
 
   return (
     <GameShell {...gameProps}>
-      <section className="rt__stage">
+      <section className="rt__stage slots-stage">
         <div className={`cabinet${isSpinning ? ' cabinet--spinning' : ''}`}>
           <div className="cabinet__glow" aria-hidden="true" />
 

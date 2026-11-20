@@ -8186,6 +8186,78 @@ button:not(:disabled):hover {
    `--gs-bar-h` is the bar's own height (plus the safe area), and the board's
    padding reserves exactly that much so nothing hides behind it.
    ========================================================================== */
+/* ---------- Phone preview frame (desktop only) ---------- */
+/* >768px the game is presented inside a smartphone mockup so it can be reviewed
+   at phone dimensions. `transform` makes the frame the containing block for the
+   shell's `position: fixed` top/dock bars, so they stay inside the phone. */
+@media (min-width: 769px) {
+  .phone-stage {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3vh 12px;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse 90% 70% at 50% 0%, rgb(240 194 74 / 8%), transparent 60%),
+      linear-gradient(180deg, #0a0d14 0%, #05070b 100%);
+  }
+
+  .phone-frame {
+    position: relative;
+    width: min(430px, 92vw);
+    height: min(92vh, 900px);
+    border-radius: 40px;
+    border: 10px solid #05070b;
+    outline: 1px solid rgb(255 255 255 / 8%);
+    overflow: hidden;
+    box-shadow:
+      0 40px 90px rgb(0 0 0 / 70%),
+      0 0 0 2px rgb(255 255 255 / 6%),
+      0 0 0 4px rgb(240 194 74 / 12%);
+    transform: translateZ(0);
+  }
+
+  /* Camera island / notch. */
+  .phone-frame::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    z-index: 200;
+    transform: translateX(-50%);
+    width: 118px;
+    height: 22px;
+    border-radius: 999px;
+    background: #000;
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 10%);
+  }
+
+  .phone-frame .gs {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .phone-frame .rt {
+    min-height: 0;
+    height: 100%;
+    overflow-y: auto;
+  }
+
+  /* Collapse the desktop two-column table (board + 380px panel) into one
+     column inside the phone, so nothing overflows horizontally. */
+  .phone-frame .rt__body {
+    grid-template-columns: 1fr;
+  }
+
+  /* Sweep the header content below the in-screen notch. */
+  .phone-frame .gs__top,
+  .phone-frame .rt__topbar {
+    padding-top: 2.1rem;
+  }
+}
+
 .gs {
   --gs-bar-h: calc(120px + env(safe-area-inset-bottom, 0px));
   --gs-top-h: 54px;
@@ -8293,6 +8365,79 @@ button:not(:disabled):hover {
   max-width: 100%;
 }
 
+/* ---------- Fill mode (opt-in via <GameShell fill />) ----------
+   The shell is exactly one screen tall (the phone frame sets its own height),
+   and the board area is the space between the two fixed bars. It never grows
+   past it, so the bottom bar can't be pushed out and nothing scrolls. */
+.gs--fill {
+  height: 100svh;
+  min-height: 0;
+}
+
+.gs__main--fill {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  flex: 1 1 0;
+  overflow: hidden;
+}
+
+.gs__main--fill > * {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+}
+
+/* ---------- Lucky Slots: cabinet stretches to the board area ----------
+   The cabinet takes all the height it is given (capped so the reels don't turn
+   into skinny towers), and the three rows share it equally. Each reel is a size
+   container, so its symbols are sized from the reel itself and scale with it. */
+.slots-stage {
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.slots-stage .cabinet {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 680px;
+  margin: 0 auto;
+}
+
+.slots-stage .cabinet__grid {
+  flex: 1 1 auto;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  min-height: 0;
+}
+
+.slots-stage .slot-row {
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+}
+
+.slots-stage .reel {
+  height: auto;
+  min-height: 0;
+  container-type: size;
+}
+
+/* Symbols are sized from the reel: ~70% of its width (an emoji is about 1em
+   wide) or ~64% of its height, whichever is smaller, so they stay big but can
+   never touch the reel's border. Centered both ways by the grid. */
+.slots-stage .reel__symbol {
+  height: 100cqh;
+  font-size: clamp(1.4rem, min(64cqh, 70cqw), 8rem);
+  line-height: 1;
+  text-align: center;
+}
+
+.slots-stage .rt__fair {
+  flex: none;
+  margin: 0;
+}
+
 /* ---------- Bottom bar ---------- */
 .gs__bar {
   position: fixed;
@@ -8305,78 +8450,6 @@ button:not(:disabled):hover {
   box-shadow:
     0 -18px 44px rgb(0 0 0 / 70%),
     inset 0 1px 0 rgb(255 226 150 / 18%);
-/* ---------- Phone preview frame (desktop only) ---------- */
-/* >768px the game is presented inside a smartphone mockup so it can be reviewed
-   at phone dimensions. `transform` makes the frame the containing block for the
-   shell's `position: fixed` top/dock bars, so they stay inside the phone. */
-@media (min-width: 769px) {
-  .phone-stage {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 3vh 12px;
-    overflow: hidden;
-    background:
-      radial-gradient(ellipse 90% 70% at 50% 0%, rgb(240 194 74 / 8%), transparent 60%),
-      linear-gradient(180deg, #0a0d14 0%, #05070b 100%);
-  }
-
-  .phone-frame {
-    position: relative;
-    width: min(430px, 92vw);
-    height: min(92vh, 900px);
-    border-radius: 40px;
-    border: 10px solid #05070b;
-    outline: 1px solid rgb(255 255 255 / 8%);
-    overflow: hidden;
-    box-shadow:
-      0 40px 90px rgb(0 0 0 / 70%),
-      0 0 0 2px rgb(255 255 255 / 6%),
-      0 0 0 4px rgb(240 194 74 / 12%);
-    transform: translateZ(0);
-  }
-
-  /* Camera island / notch. */
-  .phone-frame::before {
-    content: '';
-    position: absolute;
-    top: 8px;
-    left: 50%;
-    z-index: 200;
-    transform: translateX(-50%);
-    width: 118px;
-    height: 22px;
-    border-radius: 999px;
-    background: #000;
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 10%);
-  }
-
-  .phone-frame .gs {
-    height: 100%;
-    min-height: 0;
-  }
-
-  .phone-frame .rt {
-    min-height: 0;
-    height: 100%;
-    overflow-y: auto;
-  }
-
-  /* Collapse the desktop two-column table (board + 380px panel) into one
-     column inside the phone, so nothing overflows horizontally. */
-  .phone-frame .rt__body {
-    grid-template-columns: 1fr;
-  }
-
-  /* Sweep the header content below the in-screen notch. */
-  .phone-frame .gs__top,
-  .phone-frame .rt__topbar {
-    padding-top: 2.1rem;
-  }
-}
-
 }
 
 /* Game-specific controls: one scrolling strip, so the bar keeps its height. */

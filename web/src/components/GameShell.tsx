@@ -38,6 +38,11 @@ export type GameShellProps = {
   title?: string;
   /** Shown under the balance, e.g. a balance request failure. */
   balanceError?: string | null;
+  /**
+   * Fill mode: the board area is exactly the space between the top bar and the
+   * bottom bar (no page scroll), and `children` may size themselves to it.
+   */
+  fill?: boolean;
 };
 
 function money(value: number): string {
@@ -64,11 +69,12 @@ export function GameShell({
   disabled = false,
   title,
   balanceError = null,
+  fill = false,
 }: GameShellProps) {
   return (
     <div className="phone-stage">
       <div className="phone-frame">
-        <div className={`gs${controls ? ' gs--wide-bar' : ''}`}>
+        <div className={`gs${controls ? ' gs--wide-bar' : ''}${fill ? ' gs--fill' : ''}`}>
       <header className="gs__top">
         <button type="button" className="gs__back" onClick={onBack}>
           <ArrowLeftIcon className="icon icon--sm" />
@@ -90,7 +96,7 @@ export function GameShell({
         </span>
       </header>
 
-      <main className="gs__main">{children}</main>
+      <main className={`gs__main${fill ? ' gs__main--fill' : ''}`}>{children}</main>
 
       <footer className="gs__bar">
         {controls && <div className="gs__controls">{controls}</div>}
