@@ -5,6 +5,7 @@ import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, SegmentColor, SpinResult, WheelConfig } from '../api/types';
 import { ArrowLeftIcon, WalletIcon } from '../components/Icons';
 import { GameBottomBar } from '../components/GameBottomBar';
+import { GameResultOverlay } from '../components/GameResultOverlay';
 import { LivePlayerBadge } from '../components/LivePlayerBadge';
 import { SoundToggle } from '../components/SoundToggle';
 import { playSound } from '../utils/sound';
@@ -59,10 +60,6 @@ function segmentFill(multiplier: number, index: number): string {
     return SWATCH[colorOf(multiplier)];
   }
   return index % 2 === 0 ? '#1b2130' : '#131822';
-}
-
-function multiplierLabel(multiplier: number): string {
-  return `${multiplier}×`;
 }
 
 /** "$0", "$5", "$100", "$1,250.50" — used where space is plentiful. */
@@ -190,22 +187,6 @@ export default function Roulette() {
     };
   }, []);
 
-  // Escape closes the result overlay.
-  useEffect(() => {
-    if (!showResult) {
-      return;
-    }
-
-    function handleKey(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setShowResult(false);
-      }
-    }
-
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [showResult]);
-
   async function handleSpin() {
     if (isSpinning) {
       return;
@@ -329,51 +310,19 @@ export default function Roulette() {
           {balanceError && <p className="error">{balanceError}</p>}
         </section>
 
-        {showResult && result && (
-          <div className="result-overlay" role="dialog" aria-modal="true" aria-labelledby="rt-result">
-            <button
-              type="button"
-              className="result-overlay__backdrop"
-              aria-label="Close result"
-              onClick={() => setShowResult(false)}
-            />
-            <div
-              className={`result-card${result.won ? ' result-card--win' : ' result-card--lose'}`}
-            >
-              <p className="result-card__kicker" id="rt-result">
-                {result.won ? 'You won!' : 'Better luck next time!'}
-              </p>
-
-              <div className={`result-card__mult result-card__mult--${result.segmentColor}`}>
-                {multiplierLabel(result.multiplier)}
-              </div>
-              <p className="result-card__color">{result.segmentColor.toUpperCase()} SEGMENT</p>
-
-              <p className="result-card__amount">
-                {result.won
-                  ? `+$${result.payout.toFixed(2)}`
-                  : `-$${result.betAmount.toFixed(2)}`}
-              </p>
-              <p className="result-card__sub">
-                {result.won
-                  ? `$${result.betAmount.toFixed(2)} bet × ${result.multiplier} = $${result.payout.toFixed(2)}`
-                  : `$${result.betAmount.toFixed(2)} bet · the wheel stopped on 0×`}
-              </p>
-
-              <div className="result-card__actions">
-                <button
-                  type="button"
-                  className="button-primary"
-                  onClick={() => setShowResult(false)}
-                >
-                  Spin again
-                </button>
-                <Link to="/" className="button-secondary">
-                  Lobby
-                </Link>
-              </div>
-            </div>
-          </div>
+        {result && (
+          <GameResultOverlay
+            isOpen={showResult}
+            isWin={result.won}
+            amount={result.won ? result.payout : result.betAmount}
+            multiplier={result.multiplier}
+            detail={
+              result.won
+                ? `$${result.betAmount.toFixed(2)} bet × ${result.multiplier} = $${result.payout.toFixed(2)}`
+                : `$${result.betAmount.toFixed(2)} bet · the wheel stopped on 0×`
+            }
+            onClose={() => setShowResult(false)}
+          />
         )}
 
       </main>

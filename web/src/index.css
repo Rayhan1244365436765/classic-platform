@@ -5339,6 +5339,338 @@ button:not(:disabled):hover {
   }
 }
 
+/* ---------- Game result overlay (non-blocking, auto-fading toast) ---------- */
+/* Animations and card styling are copied from the Showdown `.win-modal`, with a
+   loss variant and pointer-events disabled so the board and bottom bar stay
+   clickable underneath. */
+.game-result {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  pointer-events: none;
+  animation: game-result-life 2400ms ease-in-out both;
+}
+
+.game-result__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(4 6 11 / 62%);
+  backdrop-filter: blur(6px);
+}
+
+.game-result--lose .game-result__backdrop {
+  background: rgb(18 8 10 / 58%);
+}
+
+.game-result__confetti {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.game-result__confetti span {
+  position: absolute;
+  top: -8vh;
+  width: var(--confetti-size, 8px);
+  height: calc(var(--confetti-size, 8px) * 1.6);
+  border-radius: 2px;
+  background: var(--confetti-color, #f4c430);
+  opacity: 0;
+  animation: game-result-confetti-fall var(--confetti-duration, 1s) linear var(--confetti-delay, 0s) infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes game-result-confetti-fall {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -8vh, 0) rotate(0deg);
+  }
+
+  8% {
+    opacity: 1;
+  }
+
+  88% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--confetti-drift, 0), 108vh, 0) rotate(var(--confetti-spin, 360deg));
+  }
+}
+
+.game-result__card {
+  position: relative;
+  z-index: 2;
+  overflow: hidden;
+  width: min(92vw, 27rem);
+  padding: 2rem 1.75rem 1.75rem;
+  border: 1px solid transparent;
+  border-radius: 24px;
+  text-align: center;
+  animation: game-result-pop 560ms cubic-bezier(0.2, 0.9, 0.25, 1.12) both;
+}
+
+.game-result--win .game-result__card {
+  background:
+    linear-gradient(180deg, #161b26, #0a0d13) padding-box,
+    linear-gradient(140deg, #f9e7a0, #d4af37 32%, #8a6a12 58%, #f6d97a 100%) border-box;
+  box-shadow:
+    0 0 0 1px rgb(212 175 55 / 18%),
+    0 30px 80px rgb(0 0 0 / 65%),
+    0 0 70px rgb(212 175 55 / 22%);
+}
+
+.game-result--lose .game-result__card {
+  background:
+    linear-gradient(180deg, #1c1417, #0c0a0d) padding-box,
+    linear-gradient(140deg, #5b2a33, #3a1c22 40%, #241317 70%, #4a2a30 100%) border-box;
+  box-shadow:
+    0 0 0 1px rgb(239 68 68 / 16%),
+    0 30px 80px rgb(0 0 0 / 65%);
+}
+
+.game-result__glow {
+  position: absolute;
+  inset: -45% 8% auto;
+  height: 65%;
+}
+
+.game-result--win .game-result__glow {
+  background: radial-gradient(closest-side, rgb(212 175 55 / 32%), transparent 70%);
+}
+
+.game-result--lose .game-result__glow {
+  background: radial-gradient(closest-side, rgb(239 68 68 / 20%), transparent 70%);
+}
+
+.game-result__stars {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-bottom: 0.4rem;
+  font-size: 1.15rem;
+  color: var(--accent);
+}
+
+.game-result__stars span {
+  animation: game-result-twinkle 1.6s ease-in-out infinite;
+}
+
+.game-result__stars span:nth-child(2) {
+  margin-top: -0.15rem;
+  font-size: 1.5rem;
+  animation-delay: 0.18s;
+}
+
+.game-result__stars span:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+@keyframes game-result-twinkle {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+}
+
+.game-result__title {
+  position: relative;
+  margin: 0;
+  font-size: clamp(1.05rem, 3.6vw, 1.35rem);
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.game-result--win .game-result__title {
+  color: #fdf6e3;
+  text-shadow: 0 0 22px rgb(212 175 55 / 45%);
+}
+
+.game-result--lose .game-result__title {
+  color: #f5dddd;
+  text-shadow: 0 0 18px rgb(239 68 68 / 25%);
+}
+
+.game-result__caption {
+  position: relative;
+  margin: 0.6rem 0 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgb(255 255 255 / 45%);
+}
+
+.game-result__mult {
+  display: inline-block;
+  margin: 0.6rem 0 0.1rem;
+  padding: 0.18rem 0.6rem;
+  border: 1px solid rgb(212 175 55 / 45%);
+  border-radius: 999px;
+  background: rgb(212 175 55 / 12%);
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.game-result__amount {
+  position: relative;
+  margin: 0.1rem 0 0.2rem;
+  font-size: clamp(2.4rem, 9vw, 3.4rem);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  animation: game-result-amount-in 700ms cubic-bezier(0.2, 0.9, 0.25, 1.1) 90ms both;
+}
+
+.game-result--win .game-result__amount {
+  background: linear-gradient(180deg, #fff6cd, #f4c430 48%, #b8860b);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 6px 22px rgb(212 175 55 / 35%));
+}
+
+.game-result--lose .game-result__amount {
+  color: #f87171;
+  filter: drop-shadow(0 6px 18px rgb(239 68 68 / 25%));
+}
+
+@keyframes game-result-amount-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+
+  70% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.game-result__detail {
+  position: relative;
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  color: rgb(255 255 255 / 55%);
+}
+
+.game-result__timer {
+  position: absolute;
+  inset: auto 0 0;
+  height: 3px;
+  background: rgb(255 255 255 / 8%);
+}
+
+.game-result__timer span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #f6d97a, #d4af37 60%, #a8842a);
+  transform-origin: left center;
+  animation-name: game-result-timer;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+.game-result--lose .game-result__timer span {
+  background: linear-gradient(90deg, #f87171, #b91c1c 60%, #7f1d1d);
+}
+
+@keyframes game-result-timer {
+  from {
+    transform: scaleX(1);
+  }
+
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes game-result-life {
+  0% {
+    opacity: 0;
+  }
+
+  8% {
+    opacity: 1;
+  }
+
+  88% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+/* scale(0.5) → overshoot → settle: a spring with no motion library. */
+@keyframes game-result-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) translateY(14px);
+  }
+
+  55% {
+    opacity: 1;
+    transform: scale(1.06) translateY(0);
+  }
+
+  76% {
+    transform: scale(0.985);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* No confetti and no bounce for players who ask for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  .game-result,
+  .game-result__card,
+  .game-result__amount,
+  .game-result__stars span {
+    animation: none;
+  }
+
+  .game-result__confetti {
+    display: none;
+  }
+
+  .game-result__timer {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .game-result__card {
+    padding: 1.6rem 1.25rem 1.3rem;
+  }
+}
+
 /* ---------- Classic Roulette ---------- */
 .cr-layout {
   display: grid;

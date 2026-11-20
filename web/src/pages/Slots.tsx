@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { GameShell } from '../components/GameShell';
+import { GameResultOverlay } from '../components/GameResultOverlay';
 import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, SlotsConfig, SlotsResult } from '../api/types';
 import { playSound } from '../utils/sound';
@@ -32,16 +33,6 @@ function stopTime(index: number): number {
 
 /** Gap between the last reel landing and the result card. */
 const CARD_DELAY = 220;
-
-function money(value: number): string {
-  const rounded = Math.round(value * 100) / 100;
-  const fractionDigits = rounded % 1 === 0 ? 0 : 2;
-
-  return `$${rounded.toLocaleString('en-US', {
-    minimumFractionDigits: fractionDigits,
-    maximumFractionDigits: 2,
-  })}`;
-}
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -195,14 +186,6 @@ export default function Slots() {
   const stake = Number(amount) || 0;
   const previewStake = stake > 0 ? stake : DEFAULT_BET;
 
-  const headline = !result
-    ? ''
-    : result.winningLines.length === 0
-      ? 'No match'
-      : result.winningLines.length > 1
-        ? 'MEGA WIN!'
-        : 'WINNER!';
-
   const caption = !result
     ? ''
     : result.winningLines.length === 0
@@ -287,18 +270,15 @@ export default function Slots() {
             </div>
           </div>
 
-          {showCard && result && (
-            <div
-              className={`slots-result${result.won ? ' slots-result--win' : ' slots-result--lose'}`}
-              role="status"
-              aria-live="polite"
-            >
-              <p className="slots-result__headline">{headline}</p>
-              <p className="slots-result__amount">
-                {result.won ? `+${money(result.payout)}` : `-${money(result.betAmount)}`}
-              </p>
-              <p className="slots-result__caption">{caption}</p>
-            </div>
+          {result && (
+            <GameResultOverlay
+              isOpen={showCard}
+              isWin={result.won}
+              amount={result.won ? result.payout : result.betAmount}
+              multiplier={result.multiplier}
+              detail={caption}
+              onClose={() => setShowCard(false)}
+            />
           )}
 
           <p className="rt__fair">Provably fair · seed hash published before every spin</p>
