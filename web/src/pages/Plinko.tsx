@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, PlinkoConfig, PlinkoResult } from '../api/types';
 import { GameShell } from '../components/GameShell';
+import { GameResultOverlay } from '../components/GameResultOverlay';
 import { playSound } from '../utils/sound';
 
 /**
@@ -35,16 +36,6 @@ const DEFAULT_BET = 10;
 type Phase = 'idle' | 'dropping' | 'landed';
 
 type Point = { x: number; y: number };
-
-function money(value: number): string {
-  const rounded = Math.round(value * 100) / 100;
-  const fractionDigits = rounded % 1 === 0 ? 0 : 2;
-
-  return `$${rounded.toLocaleString('en-US', {
-    minimumFractionDigits: fractionDigits,
-    maximumFractionDigits: 2,
-  })}`;
-}
 
 function slotTopY(): number {
   return PEG_TOP_Y + ROWS * PEG_GAP_Y + 8;
@@ -264,6 +255,7 @@ export default function Plinko() {
   const [phase, setPhase] = useState<Phase>('idle');
   const [result, setResult] = useState<PlinkoResult | null>(null);
   const [history, setHistory] = useState<PlinkoResult[]>([]);
+  const [showWin, setShowWin] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -353,6 +345,7 @@ export default function Plinko() {
           setPhase('landed');
           landedSlotRef.current = resultRef.current?.slot ?? null;
           glowRef.current = 1;
+          setShowWin((resultRef.current?.multiplier ?? 0) >= 1);
           playSound((resultRef.current?.multiplier ?? 0) >= 1 ? 'win' : 'lose');
         }
 
@@ -391,6 +384,7 @@ export default function Plinko() {
     }
 
     setResult(null);
+    setShowWin(false);
     landedSlotRef.current = null;
     glowRef.current = 0;
     lastHopRef.current = -1;
@@ -463,30 +457,15 @@ export default function Plinko() {
           <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H} className="plinko__board" />
         </div>
 
-        {phase === 'landed' && result && (
-          <div
-            className={`plinko-result${
-              result.multiplier >= 1 ? ' plinko-result--win' : ' plinko-result--lose'
-            }`}
-            role="status"
-            aria-live="polite"
-          >
-            <p className="plinko-result__headline">
-              {result.multiplier >= 5
-                ? 'MEGA HIT!'
-                : result.multiplier >= 2
-                  ? 'Big win!'
-                  : result.multiplier >= 1
-                    ? 'Nice drop'
-                    : 'Small loss'}
-            </p>
-            <p className="plinko-result__amount">
-              {result.multiplier.toFixed(2)}× · {money(result.payout)}
-            </p>
-            <p className="plinko-result__caption">
-              Slot {result.slot + 1} of {SLOTS} · {result.path.join('')}
-            </p>
-          </div>
+        {result && (
+          <GameResultOverlay
+            isOpen={showWin}
+            isWin={result.multiplier >= 1}
+            amount={result.payout}
+            multiplier={result.multiplier}
+            detail={`Slot ${result.slot + 1} of ${SLOTS}`}
+            onClose={() => setShowWin(false)}
+          />
         )}
 
         <p className="rt__fair">

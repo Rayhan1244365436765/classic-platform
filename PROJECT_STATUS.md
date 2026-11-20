@@ -129,7 +129,7 @@ smoke script.
 - 16 of 17 games have a page + route in `src/App.tsx` (see §5 for the missing one):
   Aviator, Baccarat, Blackjack, BoxingKing, Cascade, ClassicRoulette, Dice, Dice3D, DragonTiger,
   FruitBonanza, Keno, Mines, Plinko, Roulette, Slots, TeenPatti.
-- Shared UI/utilities: `src/components/*` (GameShell, Modal, WinModal, Icons, SoundToggle,
+- Shared UI/utilities: `src/components/*` (GameShell, Modal, GameResultOverlay, Icons, SoundToggle,
   LivePlayerBadge), `src/utils/sound.ts`, `src/utils/livePlayers.ts`.
 - Typed API layer: `src/api/client.ts`, `src/api/types.ts`.
 

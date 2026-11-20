@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, BlackjackState } from '../api/types';
 import { GameShell } from '../components/GameShell';
+import { GameResultOverlay } from '../components/GameResultOverlay';
 import { playSound } from '../utils/sound';
 
 /**
@@ -15,16 +16,6 @@ import { playSound } from '../utils/sound';
 const DEFAULT_BET = 10;
 
 const SUIT_SYMBOL: Record<string, string> = { S: '♠', H: '♥', D: '♦', C: '♣' };
-
-function money(value: number): string {
-  const rounded = Math.round(value * 100) / 100;
-  const fractionDigits = rounded % 1 === 0 ? 0 : 2;
-
-  return `$${rounded.toLocaleString('en-US', {
-    minimumFractionDigits: fractionDigits,
-    maximumFractionDigits: 2,
-  })}`;
-}
 
 /** Card code → face details. */
 function parseCard(code: string): { rank: string; suit: string; red: boolean } {
@@ -78,6 +69,7 @@ export default function Blackjack() {
 
   const [amount, setAmount] = useState(String(DEFAULT_BET));
   const [game, setGame] = useState<BlackjackState | null>(null);
+  const [showWin, setShowWin] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -143,6 +135,7 @@ export default function Blackjack() {
 
     setBusy(true);
     setGame(null);
+    setShowWin(false);
 
     try {
       const { data } = await api.post<BlackjackState>('/game/blackjack/start', {
@@ -155,6 +148,7 @@ export default function Blackjack() {
 
       if (data.status !== 'active') {
         // A natural settled immediately.
+        if (data.status === 'won') setShowWin(true);
         playSound(data.status === 'won' ? 'win' : data.status === 'push' ? 'click' : 'lose');
         void refreshBalance();
       }
@@ -184,6 +178,7 @@ export default function Blackjack() {
       playSound('click');
 
       if (data.status !== 'active') {
+        if (data.status === 'won') setShowWin(true);
         playSound(data.status === 'won' ? 'win' : data.status === 'push' ? 'click' : 'lose');
         void refreshBalance();
       }
@@ -198,20 +193,7 @@ export default function Blackjack() {
   const stake = Number(amount) || 0;
   const previewStake = stake > 0 ? stake : DEFAULT_BET;
   const active = game?.status === 'active';
-  const settled = game !== null && game.status !== 'active';
   const dealerHidden = active;
-
-  const outcomeText = !game
-    ? ''
-    : game.status === 'won'
-      ? game.playerBlackjack
-        ? 'BLACKJACK!'
-        : 'You win!'
-      : game.status === 'push'
-        ? 'Push — bet returned'
-        : game.playerTotal > 21
-          ? 'Bust!'
-          : 'Dealer wins';
 
   return (
     <GameShell
@@ -293,30 +275,15 @@ export default function Blackjack() {
           </div>
         </div>
 
-        {settled && game && (
-          <div
-            className={`bj-result${
-              game.status === 'won'
-                ? ' bj-result--win'
-                : game.status === 'push'
-                  ? ' bj-result--push'
-                  : ' bj-result--lose'
-            }`}
-            role="status"
-            aria-live="polite"
-          >
-            <p className="bj-result__headline">{outcomeText}</p>
-            <p className="bj-result__amount">
-              {game.status === 'won'
-                ? `+${money(game.payout - game.betAmount)}`
-                : game.status === 'push'
-                  ? `${money(game.payout)} returned`
-                  : `-${money(game.betAmount)}`}
-            </p>
-            <p className="bj-result__caption">
-              You {game.playerTotal} · dealer {game.dealerTotal ?? '—'}
-            </p>
-          </div>
+        {game && (
+          <GameResultOverlay
+            isOpen={showWin}
+            isWin={game.status === 'won'}
+            amount={game.status === 'won' ? game.payout : 0}
+            multiplier={game.betAmount > 0 ? Math.round((game.payout / game.betAmount) * 100) / 100 : 0}
+            detail={`You ${game.playerTotal} · dealer ${game.dealerTotal ?? '—'}`}
+            onClose={() => setShowWin(false)}
+          />
         )}
 
         <p className="rt__fair">

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { GameShell } from '../components/GameShell';
+import { GameResultOverlay } from '../components/GameResultOverlay';
 import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, FortuneGemsConfig, FortuneGemsResult } from '../api/types';
 import { playSound } from '../utils/sound';
@@ -39,20 +40,6 @@ const FALLBACK_CONFIG: FortuneGemsConfig = {
   houseEdge: 0.02221,
 };
 
-function money(value: number): string {
-  const rounded = Math.round(value * 100) / 100;
-  const digits = rounded % 1 === 0 ? 0 : 2;
-
-  return `$${rounded.toLocaleString('en-US', {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-function multiplierLabel(value: number): string {
-  return `${Math.round(value * 100) / 100}×`;
-}
-
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => {
     window.setTimeout(resolve, ms);
@@ -85,6 +72,7 @@ export default function FortuneGems() {
   const [winningCells, setWinningCells] = useState<number[]>([]);
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<FortuneGemsResult | null>(null);
+  const [showWin, setShowWin] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refreshBalance = useCallback(async () => {
@@ -147,6 +135,7 @@ export default function FortuneGems() {
     setSpinning(true);
     setError(null);
     setResult(null);
+    setShowWin(false);
     setWinningCells([]);
     setCells(Array(CELLS).fill(null));
     playSound('spin');
@@ -168,6 +157,7 @@ export default function FortuneGems() {
 
       setWinningCells(data.winningCells);
       setResult(data);
+      if (data.won) setShowWin(true);
       setBalance(data.balanceAfter);
       playSound(data.won ? 'win' : 'lose');
       void refreshBalance();
@@ -230,19 +220,20 @@ export default function FortuneGems() {
           </div>
         </div>
 
-        <p
-          className={`fg-result${result ? (result.won ? ' fg-result--won' : ' fg-result--lost') : ''}`}
-          role="status"
-          aria-live="polite"
-        >
-          {spinning
-            ? 'Spinning…'
-            : result
-              ? result.won
-                ? `${result.clusters.length} cluster${result.clusters.length > 1 ? 's' : ''} · best ${result.biggestCluster} · ${multiplierLabel(result.multiplier)} → ${money(result.payout)}`
-                : 'No cluster — the round goes to the house'
-              : idleText}
+        <p className="fg-result" role="status" aria-live="polite">
+          {spinning ? 'Spinning…' : idleText}
         </p>
+
+        {result && (
+          <GameResultOverlay
+            isOpen={showWin}
+            isWin={result.won}
+            amount={result.payout}
+            multiplier={result.multiplier}
+            detail={`${result.clusters.length} cluster${result.clusters.length > 1 ? 's' : ''} · best ${result.biggestCluster}`}
+            onClose={() => setShowWin(false)}
+          />
+        )}
 
         <p className="rt__fair">Provably fair · seed hash published before every spin</p>
       </section>

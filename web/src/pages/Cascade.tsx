@@ -7,7 +7,7 @@ import { ArrowLeftIcon, WalletIcon } from '../components/Icons';
 import { LivePlayerBadge } from '../components/LivePlayerBadge';
 import { SoundToggle } from '../components/SoundToggle';
 import { GameBottomBar } from '../components/GameBottomBar';
-import { WinModal } from '../components/WinModal';
+import { GameResultOverlay } from '../components/GameResultOverlay';
 import { playSound } from '../utils/sound';
 
 /**
@@ -122,7 +122,7 @@ export default function Cascade() {
   const [activeStep, setActiveStep] = useState(-1);
   const [result, setResult] = useState<CascadeResult | null>(null);
   const [spinning, setSpinning] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [showWin, setShowWin] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   /** Set when the page unmounts so a half-finished replay stops writing state. */
@@ -196,7 +196,7 @@ export default function Cascade() {
     setSpinning(true);
     setError(null);
     setResult(null);
-    setModalOpen(false);
+    setShowWin(false);
     setActiveStep(-1);
     setWinning(new Set());
     playSound('click');
@@ -248,7 +248,7 @@ export default function Cascade() {
       playSound(data.payout > 0 ? 'win' : 'lose');
 
       // Celebrate every win, however small — the dialog is part of the loop.
-      if (data.payout > 0) setModalOpen(true);
+      if (data.payout > 0) setShowWin(true);
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, 'The spin could not be completed.'));
       setPhase('idle');
@@ -256,10 +256,6 @@ export default function Cascade() {
     } finally {
       if (!unmounted.current) setSpinning(false);
     }
-  }
-
-  function closeWinModal(): void {
-    setModalOpen(false);
   }
 
   const statusText =
@@ -378,7 +374,14 @@ export default function Cascade() {
         />
       </footer>
 
-      <WinModal isOpen={modalOpen} winAmount={result?.payout ?? 0} onClose={closeWinModal} />
+      <GameResultOverlay
+        isOpen={showWin}
+        isWin={(result?.payout ?? 0) > 0}
+        amount={result?.payout ?? 0}
+        multiplier={result && validStake > 0 ? Math.round((result.payout / validStake) * 100) / 100 : 0}
+        detail={result && result.payout > 0 ? `${result.cascadeCount} cascade${result.cascadeCount === 1 ? '' : 's'}` : undefined}
+        onClose={() => setShowWin(false)}
+      />
     </div>
   );
 }

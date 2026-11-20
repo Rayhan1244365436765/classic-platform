@@ -7,7 +7,7 @@ import { ArrowLeftIcon, WalletIcon } from '../components/Icons';
 import { LivePlayerBadge } from '../components/LivePlayerBadge';
 import { SoundToggle } from '../components/SoundToggle';
 import { GameBottomBar } from '../components/GameBottomBar';
-import { WinModal } from '../components/WinModal';
+import { GameResultOverlay } from '../components/GameResultOverlay';
 import { playSound } from '../utils/sound';
 
 /**
@@ -206,8 +206,7 @@ export default function Dice3D() {
   const [result, setResult] = useState<Dice3dResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [winAmount, setWinAmount] = useState(0);
+  const [showWin, setShowWin] = useState(false);
 
   const unmounted = useRef(false);
 
@@ -286,7 +285,7 @@ export default function Dice3D() {
     setRolling(true);
     setError(null);
     setResult(null);
-    setIsModalOpen(false);
+    setShowWin(false);
     setPhase('rolling');
     setRollSpeeds(randomRollSpeeds());
     playSound('click');
@@ -317,10 +316,7 @@ export default function Dice3D() {
       setResult(data);
       playSound(data.payout > 0 ? 'win' : 'lose');
 
-      if (data.payout > 0) {
-        setWinAmount(data.payout);
-        setIsModalOpen(true);
-      }
+      if (data.payout > 0) setShowWin(true);
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, 'The roll could not be completed.'));
       setPhase('idle');
@@ -377,16 +373,10 @@ export default function Dice3D() {
             </div>
           </div>
 
-          <p
-            className={`d3d-result${result ? (result.won ? ' d3d-result--won' : ' d3d-result--lost') : ''}`}
-            role="status"
-            aria-live="polite"
-          >
+          <p className="d3d-result" role="status" aria-live="polite">
             {phase === 'rolling'
               ? `Rolling… ${betLabel(bet)} at ${multiplierLabel(pays)}`
-              : result
-                ? resultText(result)
-                : `${betLabel(bet)} pays ${multiplierLabel(pays)} · triples lose high/low`}
+              : `${betLabel(bet)} pays ${multiplierLabel(pays)} · triples lose high/low`}
           </p>
 
           <div className="d3d-bets">
@@ -446,7 +436,16 @@ export default function Dice3D() {
         />
       </footer>
 
-      <WinModal isOpen={isModalOpen} winAmount={winAmount} onClose={() => setIsModalOpen(false)} />
+      {result && (
+        <GameResultOverlay
+          isOpen={showWin}
+          isWin={result.won}
+          amount={result.payout}
+          multiplier={result.multiplier}
+          detail={result.won ? resultText(result) : undefined}
+          onClose={() => setShowWin(false)}
+        />
+      )}
     </div>
   );
 }

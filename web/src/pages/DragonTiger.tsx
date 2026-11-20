@@ -8,6 +8,7 @@ import type {
   DragonTigerResult,
 } from '../api/types';
 import { GameShell } from '../components/GameShell';
+import { GameResultOverlay } from '../components/GameResultOverlay';
 import { playSound } from '../utils/sound';
 
 const DEFAULT_BET = 10;
@@ -27,12 +28,6 @@ const FALLBACK_CONFIG: DragonTigerConfig = {
 };
 
 const SUIT_SYMBOL: Record<string, string> = { S: '♠', H: '♥', D: '♦', C: '♣' };
-
-function money(value: number): string {
-  const rounded = Math.round(value * 100) / 100;
-  const fractionDigits = rounded % 1 === 0 ? 0 : 2;
-  return `$${rounded.toLocaleString('en-US', { minimumFractionDigits: fractionDigits, maximumFractionDigits: 2 })}`;
-}
 
 function parseCard(code: string): { rank: string; suit: string; red: boolean } {
   const rank = code.slice(0, -1);
@@ -73,6 +68,7 @@ export default function DragonTiger() {
   const [result, setResult] = useState<DragonTigerResult | null>(null);
   const [revealed, setRevealed] = useState(0);
   const [dealing, setDealing] = useState(false);
+  const [showWin, setShowWin] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dealTimer = useRef<number | null>(null);
 
@@ -106,7 +102,7 @@ export default function DragonTiger() {
   async function bet(side: DragonTigerBet) {
     if (dealing) return;
     if (validStake <= 0) { setError('Enter a bet amount greater than 0.'); return; }
-    setDealing(true); setError(null); playSound('click');
+    setDealing(true); setError(null); setShowWin(false); playSound('click');
     try {
       const { data } = await api.post<DragonTigerResult>('/game/dragontiger/play', { betAmount: validStake, betOn: side });
       setBalance(data.balanceAfter);
@@ -120,6 +116,7 @@ export default function DragonTiger() {
         }, CARD_MS);
       });
       playSound(data.outcome === 'won' ? 'win' : 'lose');
+      if (data.outcome === 'won') setShowWin(true);
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, 'The hand could not be dealt.'));
       void refreshBalance();
@@ -166,13 +163,14 @@ export default function DragonTiger() {
             {dealing ? 'Dealing…' : settled && result ? (result.winner === 'tie' ? `Both drew rank ${result.dragonRank} — tie` : `${result.winner === 'dragon' ? 'Dragon' : 'Tiger'} ${Math.max(result.dragonRank, result.tigerRank)} beats ${Math.min(result.dragonRank, result.tigerRank)}`) : 'Place a bet to be dealt in'}
           </p>
         </div>
-        {result && settled && (
-          <div className={`dt-result dt-result--${result.outcome}`} role="status" aria-live="polite">
-            <p className="dt-result__headline">{result.winner === 'tie' ? 'TIE' : `${result.winner.toUpperCase()} WINS`}</p>
-            <p className="dt-result__amount">{result.outcome === 'won' ? `+${money(result.payout - result.betAmount)}` : `-${money(result.betAmount)}`}</p>
-            <p className="dt-result__caption">You backed {result.betOn.toUpperCase()} · {result.outcome === 'won' ? `paid ${result.multiplier}× your bet` : result.winner === 'tie' ? 'a tie loses Dragon and Tiger bets' : `${result.winner.toUpperCase()} took it`}</p>
-          </div>
-        )}
+        <GameResultOverlay
+          isOpen={showWin}
+          isWin={result?.outcome === 'won'}
+          amount={result?.payout ?? 0}
+          multiplier={result?.multiplier ?? 0}
+          detail={result?.outcome === 'won' ? `You backed ${result.betOn.toUpperCase()} · paid ${result.multiplier}× your bet` : undefined}
+          onClose={() => setShowWin(false)}
+        />
         {error && <p className="error">{error}</p>}
       </section>
     </GameShell>

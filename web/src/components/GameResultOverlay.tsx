@@ -4,8 +4,8 @@ import { createPortal } from 'react-dom';
 /**
  * Non-blocking **win** toast — the standard celebration for every game. It is
  * the Showdown ("Cascade") win dialog, generalized: the exact gold card,
- * confetti, star twinkle, spring/bounce and countdown-bar animations from
- * `WinModal` are reused, plus a multiplier badge and an optional detail line.
+ * confetti, star twinkle, spring/bounce and countdown-bar animations, plus a
+ * multiplier badge and an optional detail line.
  *
  * Losses are silent: when `isWin` is false the component renders nothing, which
  * keeps the loop positive and uninterrupted.

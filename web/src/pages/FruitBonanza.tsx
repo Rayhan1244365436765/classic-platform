@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, FruitBonanzaConfig, FruitBonanzaResult, FruitLineResult } from '../api/types';
 import { GameShell } from '../components/GameShell';
-import { WinModal } from '../components/WinModal';
+import { GameResultOverlay } from '../components/GameResultOverlay';
 import { playSound } from '../utils/sound';
 
 const DEFAULT_BET = 5;
@@ -51,8 +51,7 @@ export default function FruitBonanza() {
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<FruitBonanzaResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [winAmount, setWinAmount] = useState(0);
+  const [showWin, setShowWin] = useState(false);
   const unmounted = useRef(false);
 
   useEffect(() => { unmounted.current = false; return () => { unmounted.current = true; }; }, []);
@@ -80,7 +79,7 @@ export default function FruitBonanza() {
   async function spin(): Promise<void> {
     if (spinning) return;
     if (validStake <= 0) { setError('Enter a bet amount greater than 0.'); return; }
-    setSpinning(true); setError(null); setResult(null); setIsModalOpen(false);
+    setSpinning(true); setError(null); setResult(null); setShowWin(false);
     const startedAt = performance.now();
     setSettled(Array(9).fill(false));
     setStrips(Array.from({ length: 9 }, () => randomStrip(config.symbols)));
@@ -101,7 +100,7 @@ export default function FruitBonanza() {
       if (unmounted.current) return;
       setResult(data);
       playSound(data.payout > 0 ? 'win' : 'lose');
-      if (data.payout > 0) { setWinAmount(data.payout); setIsModalOpen(true); }
+      if (data.payout > 0) setShowWin(true);
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, 'The spin could not be completed.'));
       setSettled(Array(9).fill(true));
@@ -139,7 +138,14 @@ export default function FruitBonanza() {
         </div>
         {error && <p className="error">{error}</p>}
       </section>
-      <WinModal isOpen={isModalOpen} winAmount={winAmount} onClose={() => setIsModalOpen(false)} />
+      <GameResultOverlay
+        isOpen={showWin}
+        isWin={(result?.payout ?? 0) > 0}
+        amount={result?.payout ?? 0}
+        multiplier={result && validStake > 0 ? Math.round((result.payout / validStake) * 100) / 100 : 0}
+        detail={result && result.payout > 0 ? `${result.lines.filter((line) => line.multiplier > 0).length} winning line(s)` : undefined}
+        onClose={() => setShowWin(false)}
+      />
     </GameShell>
   );
 }

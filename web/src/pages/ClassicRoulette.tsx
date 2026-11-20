@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, ClassicRouletteConfig, ClassicRouletteResult, PocketColor, RouletteBetType } from '../api/types';
 import { GameShell } from '../components/GameShell';
+import { GameResultOverlay } from '../components/GameResultOverlay';
 import { playSound } from '../utils/sound';
 
 const DEFAULT_BET = 10;
@@ -25,7 +26,6 @@ const OUTSIDE_BETS: { type: RouletteBetType; label: string }[] = [
 ];
 
 type Selection = { type: RouletteBetType; value: number | null };
-function money(value: number): string { const rounded = Math.round(value * 100) / 100; const fractionDigits = rounded % 1 === 0 ? 0 : 2; return `$${rounded.toLocaleString('en-US', { minimumFractionDigits: fractionDigits, maximumFractionDigits: 2 })}`; }
 function colourOf(pocket: number, redNumbers: readonly number[]): PocketColor { if (pocket === 0) return 'green'; return redNumbers.includes(pocket) ? 'red' : 'black'; }
 function betLabel(selection: Selection): string { return selection.type === 'number' ? `#${selection.value}` : selection.type.toUpperCase(); }
 async function fetchBalance(): Promise<number> { const { data } = await api.get<BalanceResponse>('/wallet/balance'); return data.balance; }
@@ -62,6 +62,7 @@ export default function ClassicRoulette() {
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<ClassicRouletteResult | null>(null);
   const [history, setHistory] = useState<{ pocket: number; color: PocketColor }[]>([]);
+  const [showWin, setShowWin] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef<WheelFrame>({ rotation: 0, ballAngle: -Math.PI / 2, ballFactor: 0.95, highlight: null });
@@ -110,7 +111,7 @@ export default function ClassicRoulette() {
     if (spinning) return;
     if (!selection) { setError('Pick a number or one of the outside bets first.'); return; }
     if (validStake <= 0) { setError('Enter a bet amount greater than 0.'); return; }
-    setSpinning(true); setError(null); setResult(null); playSound('click');
+    setSpinning(true); setError(null); setResult(null); setShowWin(false); playSound('click');
     try {
       const { data } = await api.post<ClassicRouletteResult>('/game/classic_roulette/play', { betAmount: validStake, betType: selection.type, betValue: selection.type === 'number' ? selection.value : undefined });
       setBalance(data.balanceAfter);
@@ -131,6 +132,7 @@ export default function ClassicRoulette() {
       });
       frameRef.current = { rotation: target, ballAngle: -Math.PI / 2, ballFactor: 0.77, highlight: data.wheelIndex }; repaint();
       setResult(data); setHistory((previous) => [{ pocket: data.pocket, color: data.pocketColor }, ...previous].slice(0, 9));
+      if (data.won) setShowWin(true);
       playSound(data.payout > 0 ? 'win' : 'lose');
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, 'The spin could not be completed.')); void refreshBalance();
@@ -176,12 +178,14 @@ export default function ClassicRoulette() {
             {history.map((entry, index) => <span key={index} className={`cr-history__chip cr-history__chip--${entry.color}`}>{entry.pocket}</span>)}
           </div>
         )}
-        {result && !spinning && (
-          <div className={`cr-result cr-result--${result.won ? 'won' : 'lost'}`} role="status" aria-live="polite">
-            <p className="cr-result__headline">{result.won ? 'WINNER!' : `${result.pocket} ${result.pocketColor}`}</p>
-            <p className="cr-result__amount">{result.won ? `+${money(result.payout - result.betAmount)}` : `-${money(result.betAmount)}`}</p>
-          </div>
-        )}
+        <GameResultOverlay
+          isOpen={showWin}
+          isWin={result?.won ?? false}
+          amount={result?.payout ?? 0}
+          multiplier={result && result.betAmount > 0 ? Math.round((result.payout / result.betAmount) * 100) / 100 : 0}
+          detail={result?.won ? `#${result.pocket} ${result.pocketColor}` : undefined}
+          onClose={() => setShowWin(false)}
+        />
         {error && <p className="error">{error}</p>}
       </section>
     </GameShell>

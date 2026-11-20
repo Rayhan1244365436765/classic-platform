@@ -1,5 +1,6 @@
-﻿import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { GameShell } from '../components/GameShell';
+import { GameResultOverlay } from '../components/GameResultOverlay';
 import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, BoxingKingConfig, BoxingKingResult } from '../api/types';
 import { playSound } from '../utils/sound';
@@ -24,20 +25,6 @@ const FALLBACK_CONFIG: BoxingKingConfig = {
   rtp: 0.974219,
   houseEdge: 0.025781,
 };
-
-function money(value: number): string {
-  const rounded = Math.round(value * 100) / 100;
-  const digits = rounded % 1 === 0 ? 0 : 2;
-
-  return `$${rounded.toLocaleString('en-US', {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-function multiplierLabel(value: number): string {
-  return `${Math.round(value * 100) / 100}×`;
-}
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -100,6 +87,7 @@ export default function BoxingKing() {
 
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<BoxingKingResult | null>(null);
+  const [showWin, setShowWin] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sparks, setSparks] = useState<CSSProperties[] | null>(null);
   const [isCurtainOpen, setIsCurtainOpen] = useState(false);
@@ -169,6 +157,7 @@ export default function BoxingKing() {
     setSpinning(true);
     setError(null);
     setResult(null);
+    setShowWin(false);
     setSparks(null);
     setIsCurtainOpen(true);
     playSound('punch');
@@ -212,6 +201,7 @@ export default function BoxingKing() {
       if (unmounted.current) return;
 
       setResult(data);
+      setShowWin(data.payout > 0);
 
       if (data.payout > 0) {
         playSound('punch', { volume: 1, pitch: 0.76 });
@@ -313,19 +303,22 @@ export default function BoxingKing() {
           </div>
         </div>
 
-        <p
-          className={`bk-result${result ? (result.won ? ' bk-result--won' : ' bk-result--lost') : ''}`}
-          role="status"
-          aria-live="polite"
-        >
+        <p className="bk-result" role="status" aria-live="polite">
           {spinning
             ? 'Fighting…'
-            : result
-              ? result.won
-                ? `${result.clusters.length} cluster${result.clusters.length > 1 ? 's' : ''} · ${result.biggestCluster} best · ${multiplierLabel(result.multiplier)} → ${money(result.payout)}`
-                : 'No cluster — the round goes to the house'
-              : `${config.pays.small}× for 3–4 · ${config.pays.medium}× for 5–6 · ${config.pays.large}× for 7+`}
+            : `${config.pays.small}× for 3–4 · ${config.pays.medium}× for 5–6 · ${config.pays.large}× for 7+`}
         </p>
+
+        {result && (
+          <GameResultOverlay
+            isOpen={showWin}
+            isWin={result.won}
+            amount={result.payout}
+            multiplier={result.multiplier}
+            detail={`${result.clusters.length} cluster${result.clusters.length > 1 ? 's' : ''} · best ${result.biggestCluster}`}
+            onClose={() => setShowWin(false)}
+          />
+        )}
       </section>
     </GameShell>
   );

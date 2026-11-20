@@ -294,7 +294,7 @@ casino-platform/
 │   ├── Dockerfile
 │   └── .env.example
 ├── web/                      # React 19 + Vite player app (:5173)
-│   └── src/                  # api/, context/, components/ (Modal, WinModal, Icons, SoundToggle,
+│   └── src/                  # api/, context/, components/ (Modal, GameResultOverlay, Icons, SoundToggle,
 │                             #   LivePlayerBadge, ProtectedRoute), utils/, pages/ (Login, Lobby, …)
 ├── admin/                    # React 19 + Vite operator dashboard (:5174)
 │   └── src/                  # api/, components/, pages/ (Login, Dashboard)

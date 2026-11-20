@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, TeenPattiConfig, TeenPattiResult } from '../api/types';
 import { GameShell } from '../components/GameShell';
+import { GameResultOverlay } from '../components/GameResultOverlay';
 import { playSound } from '../utils/sound';
 
 const DEFAULT_BET = 10;
@@ -33,12 +34,6 @@ const FALLBACK_CONFIG: TeenPattiConfig = {
 
 const SUIT_SYMBOL: Record<string, string> = { S: '♠', H: '♥', D: '♦', C: '♣' };
 type DealStep = { side: 'player' | 'dealer'; index: number };
-
-function money(value: number): string {
-  const rounded = Math.round(value * 100) / 100;
-  const fractionDigits = rounded % 1 === 0 ? 0 : 2;
-  return `$${rounded.toLocaleString('en-US', { minimumFractionDigits: fractionDigits, maximumFractionDigits: 2 })}`;
-}
 
 function parseCard(code: string): { rank: string; suit: string; red: boolean } {
   const rank = code.slice(0, -1);
@@ -78,6 +73,7 @@ export default function TeenPatti() {
   const [result, setResult] = useState<TeenPattiResult | null>(null);
   const [revealed, setRevealed] = useState(0);
   const [dealing, setDealing] = useState(false);
+  const [showWin, setShowWin] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dealTimer = useRef<number | null>(null);
 
@@ -111,7 +107,7 @@ export default function TeenPatti() {
   async function play() {
     if (dealing) return;
     if (validStake <= 0) { setError('Enter a bet amount greater than 0.'); return; }
-    setDealing(true); setError(null); playSound('click');
+    setDealing(true); setError(null); setShowWin(false); playSound('click');
     try {
       const { data } = await api.post<TeenPattiResult>('/game/teenpatti/play', { betAmount: validStake });
       setBalance(data.balanceAfter);
@@ -124,7 +120,7 @@ export default function TeenPatti() {
           if (shown >= sequence.length) { stopDeal(); resolve(); }
         }, CARD_MS);
       });
-      if (data.outcome === 'won') playSound('win'); else if (data.outcome === 'lost') playSound('lose');
+      if (data.outcome === 'won') { playSound('win'); setShowWin(true); } else if (data.outcome === 'lost') playSound('lose');
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, 'The hand could not be dealt.'));
       void refreshBalance();
@@ -155,13 +151,14 @@ export default function TeenPatti() {
           </div>
           <p className="tp-table__note">{dealing ? `Dealing… ${revealed}/${sequence.length}` : settled && result ? `${result.playerHandLabel} vs ${result.dealerHandLabel}` : 'Place a bet to be dealt in'}</p>
         </div>
-        {result && settled && (
-          <div className={`tp-result tp-result--${result.outcome}`} role="status" aria-live="polite">
-            <p className="tp-result__headline">{result.winner === 'tie' ? `Tie — both ${result.playerHandLabel}` : `${result.winner === 'player' ? 'Player' : 'Dealer'} wins with a ${result.winner === 'player' ? result.playerHandLabel : result.dealerHandLabel}!`}</p>
-            <p className="tp-result__amount">{result.outcome === 'won' ? `+${money(result.payout - result.betAmount)}` : result.outcome === 'push' ? `stake returned · ${money(result.payout)}` : `-${money(result.betAmount)}`}</p>
-            <p className="tp-result__caption">{result.outcome === 'won' ? `Paid ${result.multiplier}× your bet` : result.outcome === 'push' ? 'Identical hands — a tie refunds the stake' : `${result.dealerHandLabel} beat your ${result.playerHandLabel}`}</p>
-          </div>
-        )}
+        <GameResultOverlay
+          isOpen={showWin}
+          isWin={result?.outcome === 'won'}
+          amount={result?.payout ?? 0}
+          multiplier={result?.multiplier ?? 0}
+          detail={result?.outcome === 'won' ? `Paid ${result.multiplier}× your bet` : undefined}
+          onClose={() => setShowWin(false)}
+        />
         {error && <p className="error">{error}</p>}
       </section>
     </GameShell>

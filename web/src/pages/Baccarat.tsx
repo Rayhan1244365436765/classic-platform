@@ -9,6 +9,7 @@ import type {
   BaccaratResult,
 } from '../api/types';
 import { GameShell } from '../components/GameShell';
+import { GameResultOverlay } from '../components/GameResultOverlay';
 import { playSound } from '../utils/sound';
 
 /**
@@ -32,16 +33,6 @@ const FALLBACK_CONFIG: BaccaratConfig = {
 const SUIT_SYMBOL: Record<string, string> = { S: '♠', H: '♥', D: '♦', C: '♣' };
 
 type DealStep = { side: 'player' | 'banker'; index: number };
-
-function money(value: number): string {
-  const rounded = Math.round(value * 100) / 100;
-  const fractionDigits = rounded % 1 === 0 ? 0 : 2;
-
-  return `$${rounded.toLocaleString('en-US', {
-    minimumFractionDigits: fractionDigits,
-    maximumFractionDigits: 2,
-  })}`;
-}
 
 function parseCard(code: BaccaratCard): { rank: string; suit: string; red: boolean } {
   const rank = code.slice(0, -1);
@@ -121,6 +112,7 @@ export default function Baccarat() {
   const [result, setResult] = useState<BaccaratResult | null>(null);
   const [revealed, setRevealed] = useState(0);
   const [dealing, setDealing] = useState(false);
+  const [showWin, setShowWin] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const dealTimer = useRef<number | null>(null);
@@ -206,6 +198,7 @@ export default function Baccarat() {
 
     setDealing(true);
     setError(null);
+    setShowWin(false);
     playSound('click');
 
     try {
@@ -235,6 +228,7 @@ export default function Baccarat() {
 
       if (data.outcome === 'won') {
         playSound('win');
+        setShowWin(true);
       } else if (data.outcome === 'lost') {
         playSound('lose');
       }
@@ -358,28 +352,18 @@ export default function Baccarat() {
           </p>
         </div>
 
-        {result && settled && (
-          <div className={`bac-result bac-result--${result.outcome}`} role="status" aria-live="polite">
-            <p className="bac-result__headline">
-              {result.winner === 'tie' ? 'TIE' : `${result.winner.toUpperCase()} WINS`}
-            </p>
-            <p className="bac-result__amount">
-              {result.outcome === 'won'
-                ? `+${money(result.payout - result.betAmount)}`
-                : result.outcome === 'push'
-                  ? `stake returned · ${money(result.payout)}`
-                  : `-${money(result.betAmount)}`}
-            </p>
-            <p className="bac-result__caption">
-              You backed {result.betOn.toUpperCase()} ·{' '}
-              {result.outcome === 'won'
-                ? `paid ${result.multiplier}× your bet`
-                : result.outcome === 'push'
-                  ? 'a tie returns Player and Banker stakes'
-                  : `${result.winner.toUpperCase()} took it`}
-            </p>
-          </div>
-        )}
+        <GameResultOverlay
+          isOpen={showWin}
+          isWin={result?.outcome === 'won'}
+          amount={result?.payout ?? 0}
+          multiplier={result?.multiplier ?? 0}
+          detail={
+            result?.outcome === 'won'
+              ? `You backed ${result.betOn.toUpperCase()} · paid ${result.multiplier}× your bet`
+              : undefined
+          }
+          onClose={() => setShowWin(false)}
+        />
 
         {error && <p className="error">{error}</p>}
       </section>

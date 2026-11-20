@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, KenoConfig, KenoPayTable, KenoResult } from '../api/types';
 import { GameShell } from '../components/GameShell';
+import { GameResultOverlay } from '../components/GameResultOverlay';
 import { playSound, startSpin, stopSpin } from '../utils/sound';
 
 const DEFAULT_BET = 10;
@@ -27,12 +28,6 @@ const FALLBACK_CONFIG: KenoConfig = {
     { picks: 10, minHits: 4, rtp: 0.9691, multipliers: [0, 0, 0, 0, 2.1, 6.31, 18.93, 56.81, 170.45, 511.35, 1534.05] },
   ],
 };
-
-function money(value: number): string {
-  const rounded = Math.round(value * 100) / 100;
-  const fractionDigits = rounded % 1 === 0 ? 0 : 2;
-  return `$${rounded.toLocaleString('en-US', { minimumFractionDigits: fractionDigits, maximumFractionDigits: 2 })}`;
-}
 
 function multiplierLabel(multiplier: number): string {
   return `${multiplier.toLocaleString('en-US', { maximumFractionDigits: 2 })}×`;
@@ -62,6 +57,7 @@ export default function Keno() {
   const [revealed, setRevealed] = useState<number[]>([]);
   const [drawing, setDrawing] = useState(false);
   const [result, setResult] = useState<KenoResult | null>(null);
+  const [showWin, setShowWin] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const revealTimer = useRef<number | null>(null);
 
@@ -154,6 +150,7 @@ export default function Keno() {
     setDrawing(true);
     setError(null);
     setResult(null);
+    setShowWin(false);
     setRevealed([]);
 
     try {
@@ -175,6 +172,7 @@ export default function Keno() {
 
       stopSpin();
       setResult(data);
+      if (data.payout > 0) setShowWin(true);
       playSound(data.payout > 0 ? 'win' : 'lose');
     } catch (requestError) {
       stopSpin();
@@ -243,12 +241,15 @@ export default function Keno() {
 
         {drawing && <p className="keno-status" role="status" aria-live="polite">Drawing {revealed.length}/{config.drawn}…</p>}
 
-        {result && !drawing && (
-          <div className={`keno-result${result.payout > 0 ? ' keno-result--win' : ' keno-result--lose'}`} role="status" aria-live="polite">
-            <p className="keno-result__headline">You matched {result.hits} number{result.hits === 1 ? '' : 's'}!</p>
-            <p className="keno-result__amount">{result.payout > 0 ? `You won ${money(result.payout)}` : 'You won $0'}</p>
-            <p className="keno-result__caption">{result.hits} of {result.picked.length} picks paid {multiplierLabel(result.multiplier)} your {money(result.betAmount)} bet</p>
-          </div>
+        {result && (
+          <GameResultOverlay
+            isOpen={showWin}
+            isWin={result.payout > 0}
+            amount={result.payout}
+            multiplier={result.multiplier}
+            detail={`${result.hits} of ${result.picked.length} picks`}
+            onClose={() => setShowWin(false)}
+          />
         )}
 
         <p className="rt__fair">{selected.length}/{picksCount} picked · top {multiplierLabel(topMultiplier)} · pays from {table.minHits} match{table.minHits === 1 ? '' : 'es'}</p>
