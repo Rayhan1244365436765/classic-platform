@@ -63,6 +63,12 @@ function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
+/** Rounds *down* to the cent, so a live amount is never shown above what pays. */
+function floorToCent(value: number): number {
+  // The epsilon absorbs float noise (e.g. 22.999999999999996 for a true 23.00).
+  return Math.floor(value * 100 + 1e-9) / 100;
+}
+
 function multiplierAt(elapsedMs: number, tauMs: number): number {
   return Math.exp(Math.max(0, elapsedMs) / tauMs);
 }
@@ -555,6 +561,8 @@ export default function Aviator() {
   const [outcome, setOutcome] = useState<AviatorOutcome | null>(null);
   const [showWin, setShowWin] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** The stake of the round in progress — the live cash-out value is based on it. */
+  const [roundStake, setRoundStake] = useState(0);
 
   /** Plane position in canvas units — drives both the DOM jet and the trail. */
   const [plane, setPlane] = useState<Point & { angle: number }>({ ...RUNWAY, angle: 0 });
@@ -738,6 +746,7 @@ export default function Aviator() {
 
     setOutcome(null);
     setShowWin(false);
+    setRoundStake(round2(stake));
     setMultiplier(1);
     multiplierRef.current = 1;
     setPlane({ ...RUNWAY, angle: 0 });
@@ -811,6 +820,8 @@ export default function Aviator() {
   const flying = phase === 'flying';
   const busy = phase === 'starting' || phase === 'settling';
   const canCashOut = flying && multiplier >= table.minCashout;
+  /** Live cash-out value (stake × multiplier), floored to the cent. */
+  const liveCashout = floorToCent(roundStake * multiplier);
 
   // Position the DOM jet in % of the canvas box (identical mapping to the trail).
   const planeStyle = {
@@ -918,6 +929,7 @@ export default function Aviator() {
           onBetChange={(value) => setAmount(String(value))}
           onPlay={() => (flying ? void handleCashout() : void placeBet())}
           playLabel={flying ? (canCashOut ? 'CASH OUT' : 'WAIT') : 'PLACE BET'}
+          secondaryText={flying ? `$${liveCashout.toFixed(2)}` : undefined}
           isPlaying={busy}
           disabled={flying && !canCashOut}
           chipsDisabled={busy || flying}

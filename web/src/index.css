@@ -8768,6 +8768,19 @@ button:not(:disabled):hover {
   opacity: 0.78;
 }
 
+/* A live value on the button (e.g. Aviator's cash-out amount): the value is the
+   headline, so it gets full strength and the label shrinks to fit the circle. */
+.gs__action--live .gs__action-label {
+  font-size: 0.74rem;
+}
+
+.gs__action--live .gs__action-bet {
+  font-size: 0.86rem;
+  letter-spacing: 0.01em;
+  opacity: 1;
+  font-variant-numeric: tabular-nums;
+}
+
 .gs__action:hover:not(:disabled) {
   filter: brightness(1.06);
 }

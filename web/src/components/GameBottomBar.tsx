@@ -18,6 +18,12 @@ export type GameBottomBarProps = {
   /** Blocks only the bet chips (e.g. Aviator in flight) — defaults to `isPlaying`. */
   chipsDisabled?: boolean;
   chips?: number[];
+  /**
+   * Replaces the small line under the button label (default: the bet amount),
+   * e.g. Aviator's live cash-out value. The accessible name follows it too, so
+   * screen readers don't announce the stake as the amount you will receive.
+   */
+  secondaryText?: string;
 };
 
 function money(value: number): string {
@@ -55,6 +61,7 @@ export function GameBottomBar({
   disabled = false,
   chipsDisabled,
   chips = DEFAULT_CHIPS,
+  secondaryText,
 }: GameBottomBarProps) {
   const [draft, setDraft] = useState(() => String(snapBet(betAmount)));
 
@@ -111,14 +118,16 @@ export function GameBottomBar({
 
         <button
           type="button"
-          className={`gs__action${isPlaying ? ' gs__action--busy' : ''}`}
+          className={`gs__action${isPlaying ? ' gs__action--busy' : ''}${
+            secondaryText ? ' gs__action--live' : ''
+          }`}
           onClick={onPlay}
           disabled={isPlaying || disabled}
-          aria-label={`${playLabel} for ${money(betAmount)}`}
+          aria-label={secondaryText ? `${playLabel} ${secondaryText}` : `${playLabel} for ${money(betAmount)}`}
         >
           <span className="gs__action-flame" aria-hidden="true" />
           <span className="gs__action-label">{playLabel}</span>
-          <span className="gs__action-bet">{isPlaying ? '…' : money(betAmount)}</span>
+          <span className="gs__action-bet">{isPlaying ? '…' : (secondaryText ?? money(betAmount))}</span>
         </button>
 
         <div className="gs__chips">{right.map(renderChip)}</div>
