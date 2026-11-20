@@ -206,9 +206,6 @@ export default function Slots() {
 
   const gameProps = {
     balance,
-    onBack: () => {
-      // Slots has no other back destination.
-    },
     betAmount: previewStake,
     setBetAmount: (amount: number) => setAmount(String(amount)),
     onSpin: () => void handleSpin(),

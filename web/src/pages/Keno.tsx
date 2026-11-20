@@ -190,7 +190,6 @@ export default function Keno() {
     <GameShell
       balance={balance}
       balanceError={balanceError}
-      onBack={() => window.history.back()}
       betAmount={validStake}
       setBetAmount={(value) => setAmount(String(value))}
       onSpin={() => void draw()}

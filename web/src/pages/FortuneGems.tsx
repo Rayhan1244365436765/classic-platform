@@ -176,7 +176,6 @@ export default function FortuneGems() {
     <GameShell
       balance={balance}
       balanceError={balanceError}
-      onBack={() => window.history.back()}
       betAmount={validStake}
       setBetAmount={(value) => setAmount(String(value))}
       onSpin={() => void spin()}

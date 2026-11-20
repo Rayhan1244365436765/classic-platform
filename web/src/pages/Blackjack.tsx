@@ -199,7 +199,6 @@ export default function Blackjack() {
     <GameShell
       balance={balance}
       balanceError={balanceError}
-      onBack={() => window.history.back()}
       betAmount={active ? (game?.betAmount ?? previewStake) : previewStake}
       setBetAmount={(value) => setAmount(String(value))}
       onSpin={() => void (active ? act('stand') : deal())}

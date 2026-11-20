@@ -824,9 +824,9 @@ export default function Aviator() {
       <div className="phone-frame">
         <div className="rt rt--aviator">
       <header className="rt__topbar">
-        <Link to="/" className="rt__back">
+        <Link to="/" className="rt__back" aria-label="Back to Lobby">
           <ArrowLeftIcon className="icon icon--sm" />
-          Back to Lobby
+          <span>Lobby</span>
         </Link>
 
         <h1 className="rt__title">Aviator</h1>

@@ -229,7 +229,6 @@ export default function BoxingKing() {
     <GameShell
       balance={balance}
       balanceError={balanceError}
-      onBack={() => window.history.back()}
       betAmount={validStake}
       setBetAmount={(amount: number) => setAmount(String(amount))}
       onSpin={() => void fight()}

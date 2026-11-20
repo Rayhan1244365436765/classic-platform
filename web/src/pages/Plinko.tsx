@@ -422,7 +422,6 @@ export default function Plinko() {
     <GameShell
       balance={balance}
       balanceError={balanceError}
-      onBack={() => window.history.back()}
       betAmount={previewStake}
       setBetAmount={(value) => setAmount(String(value))}
       onSpin={() => void drop()}

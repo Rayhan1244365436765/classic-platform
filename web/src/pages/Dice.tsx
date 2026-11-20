@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, DiceConfig, DicePrediction, DiceResult } from '../api/types';
 import { GameShell } from '../components/GameShell';
@@ -177,9 +177,6 @@ export default function Dice() {
 
   const gameProps = {
     balance,
-    onBack: () => {
-      // Dice has no other back destination.
-    },
     betAmount: previewStake,
     setBetAmount: (amount: number) => setAmount(String(amount)),
     onSpin: () => void roll(call ?? 'high'),

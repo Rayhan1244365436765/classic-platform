@@ -273,7 +273,6 @@ export default function Mines() {
     <GameShell
       balance={balance}
       balanceError={balanceError}
-      onBack={() => window.history.back()}
       betAmount={previewStake}
       setBetAmount={(value) => setAmount(String(value))}
       onSpin={() => {

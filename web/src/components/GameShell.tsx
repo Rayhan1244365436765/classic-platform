@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 
 import { GameBottomBar } from './GameBottomBar';
 import { ArrowLeftIcon, WalletIcon } from './Icons';
@@ -23,7 +24,6 @@ const DEFAULT_CHIPS = [5, 10, 20, 50];
 
 export type GameShellProps = {
   balance: number | null;
-  onBack: () => void;
   betAmount: number;
   setBetAmount: (amount: number) => void;
   onSpin: () => void;
@@ -57,7 +57,6 @@ function money(value: number): string {
 
 export function GameShell({
   balance,
-  onBack,
   betAmount,
   setBetAmount,
   onSpin,
@@ -76,10 +75,10 @@ export function GameShell({
       <div className="phone-frame">
         <div className={`gs${controls ? ' gs--wide-bar' : ''}${fill ? ' gs--fill' : ''}`}>
       <header className="gs__top">
-        <button type="button" className="gs__back" onClick={onBack}>
+        <Link to="/" className="gs__back" aria-label="Back to Lobby">
           <ArrowLeftIcon className="icon icon--sm" />
           <span>Lobby</span>
-        </button>
+        </Link>
 
         <h1 className="gs__title">{title ?? 'Play'}</h1>
 

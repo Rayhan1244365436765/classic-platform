@@ -111,7 +111,7 @@ export default function FruitBonanza() {
   const glow = result ? winningCells(result.lines) : new Set<number>();
 
   return (
-    <GameShell balance={balance} balanceError={balanceError} onBack={() => window.history.back()} betAmount={validStake} setBetAmount={(value) => setAmount(String(value))} onSpin={() => void spin()} spinLabel={spinning ? 'SPINNING' : 'SPIN'} isSpinning={spinning}>
+    <GameShell balance={balance} balanceError={balanceError} betAmount={validStake} setBetAmount={(value) => setAmount(String(value))} onSpin={() => void spin()} spinLabel={spinning ? 'SPINNING' : 'SPIN'} isSpinning={spinning}>
       <section className="rt__stage fb__stage">
         <div className="fb-cabinet">
           <div className="fb-cabinet__header">

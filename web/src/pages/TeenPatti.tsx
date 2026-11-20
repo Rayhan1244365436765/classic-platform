@@ -130,7 +130,7 @@ export default function TeenPatti() {
   const cardsFor = (side: 'player' | 'dealer') => (result ? (side === 'player' ? result.playerHand : result.dealerHand) : []);
 
   return (
-    <GameShell balance={balance} balanceError={balanceError} onBack={() => window.history.back()} betAmount={validStake} setBetAmount={(value) => setAmount(String(value))} onSpin={() => void play()} spinLabel={dealing ? 'DEALING…' : 'PLAY'} isSpinning={dealing}>
+    <GameShell balance={balance} balanceError={balanceError} betAmount={validStake} setBetAmount={(value) => setAmount(String(value))} onSpin={() => void play()} spinLabel={dealing ? 'DEALING…' : 'PLAY'} isSpinning={dealing}>
       <section className="rt__stage">
         <div className={`tp-table${dealing ? ' tp-table--dealing' : ''}`}>
           <p className="tp-table__rule">Trail &gt; Pure Sequence &gt; Sequence &gt; Colour &gt; Pair &gt; High Card · a tie refunds</p>

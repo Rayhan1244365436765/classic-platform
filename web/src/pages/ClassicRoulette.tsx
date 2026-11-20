@@ -143,7 +143,7 @@ export default function ClassicRoulette() {
   const isPicked = (type: RouletteBetType, value: number | null): boolean => selection?.type === type && selection.value === value;
 
   return (
-    <GameShell balance={balance} balanceError={balanceError} onBack={() => window.history.back()} betAmount={validStake} setBetAmount={(value) => setAmount(String(value))} onSpin={() => void spin()} spinLabel={spinning ? 'SPINNING' : 'SPIN'} isSpinning={spinning} disabled={!selection} controls={<span className="panel-label">{selection ? `Bet: ${betLabel(selection)}` : 'Pick a bet'}</span>}>
+    <GameShell balance={balance} balanceError={balanceError} betAmount={validStake} setBetAmount={(value) => setAmount(String(value))} onSpin={() => void spin()} spinLabel={spinning ? 'SPINNING' : 'SPIN'} isSpinning={spinning} disabled={!selection} controls={<span className="panel-label">{selection ? `Bet: ${betLabel(selection)}` : 'Pick a bet'}</span>}>
       <section className="rt__stage">
         <div className="cr-layout">
           <div className="cr-wheel-wrap">
