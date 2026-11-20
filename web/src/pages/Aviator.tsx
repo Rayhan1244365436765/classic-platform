@@ -49,6 +49,34 @@ const WAVE_PITCH = 0.055;
 
 type Phase = 'idle' | 'starting' | 'flying' | 'settling' | 'cashed_out' | 'crashed';
 
+/** Auto cash-out preference (toggle + target) survives reloads. */
+const AUTO_STORAGE_KEY = 'casino.aviator.autoCashout';
+const DEFAULT_AUTO_TARGET = '2.00';
+
+/** Reads the saved preference; anything missing or out of range falls back to off @ 2.00x. */
+function readAutoCashout(): { enabled: boolean; target: string } {
+  try {
+    const raw = window.localStorage.getItem(AUTO_STORAGE_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw) as { enabled?: unknown; target?: unknown };
+      const target = Number(saved.target);
+
+      if (
+        typeof saved.enabled === 'boolean' &&
+        Number.isFinite(target) &&
+        target >= FALLBACK_CONFIG.minCashout &&
+        target <= FALLBACK_CONFIG.crashCap
+      ) {
+        return { enabled: saved.enabled, target: target.toFixed(2) };
+      }
+    }
+  } catch {
+    // Private mode or corrupt JSON: use the defaults.
+  }
+
+  return { enabled: false, target: DEFAULT_AUTO_TARGET };
+}
+
 function money(value: number): string {
   const rounded = Math.round(value * 100) / 100;
   const fractionDigits = rounded % 1 === 0 ? 0 : 2;
@@ -564,6 +592,10 @@ export default function Aviator() {
   /** The stake of the round in progress — the live cash-out value is based on it. */
   const [roundStake, setRoundStake] = useState(0);
 
+  // Auto cash-out: the toggle and the target text (a draft, so "2." can be typed).
+  const [autoOn, setAutoOn] = useState(() => readAutoCashout().enabled);
+  const [autoDraft, setAutoDraft] = useState(() => readAutoCashout().target);
+
   /** Plane position in canvas units — drives both the DOM jet and the trail. */
   const [plane, setPlane] = useState<Point & { angle: number }>({ ...RUNWAY, angle: 0 });
 
@@ -576,6 +608,14 @@ export default function Aviator() {
   const phaseRef = useRef<Phase>('idle');
   const crashedAtRef = useRef<number | null>(null);
   const trailRef = useRef<Point[]>([]);
+  /** Active auto cash-out target (null = off/invalid); read by the frame loop. */
+  const autoTargetRef = useRef<number | null>(null);
+  /** Auto cash-out fires at most once per round. */
+  const autoFiredRef = useRef(false);
+  /** A cash-out request is in flight (manual or auto) — blocks a second one. */
+  const cashoutBusyRef = useRef(false);
+  /** Always the latest `handleCashout`, so the frame loop never calls a stale copy. */
+  const cashoutRef = useRef<(claim?: number) => Promise<void>>(async () => undefined);
 
   const refreshBalance = useCallback(async () => {
     try {
@@ -720,6 +760,14 @@ export default function Aviator() {
         return;
       }
 
+      // Auto cash-out: the first frame at/above the target claims exactly the
+      // target (not the overshoot). Once per round; a burst above wins the race.
+      const target = autoTargetRef.current;
+      if (target !== null && !autoFiredRef.current && current >= target) {
+        autoFiredRef.current = true;
+        void cashoutRef.current(target);
+      }
+
       frame = window.requestAnimationFrame(tick);
     };
 
@@ -744,6 +792,8 @@ export default function Aviator() {
       return;
     }
 
+    autoFiredRef.current = false;
+    cashoutBusyRef.current = false;
     setOutcome(null);
     setShowWin(false);
     setRoundStake(round2(stake));
@@ -783,19 +833,27 @@ export default function Aviator() {
     }
   }
 
-  async function handleCashout() {
+  /**
+   * Cash out the running round. `claim` (auto cash-out) is the multiplier to be
+   * paid at; the manual button omits it and claims the live multiplier. Either
+   * way the server pays the lower of the claim and its own multiplier. The busy
+   * ref makes a manual click and an auto trigger in the same frame collapse into
+   * one request.
+   */
+  async function handleCashout(claim?: number) {
     const id = roundIdRef.current;
-    if (phase !== 'flying' || !id) {
+    if (phase !== 'flying' || !id || cashoutBusyRef.current) {
       return;
     }
 
+    cashoutBusyRef.current = true;
     setPhase('settling');
     setError(null);
 
     try {
       const { data } = await api.post<AviatorOutcome>('/game/aviator/cashout', {
         roundId: id,
-        multiplier: round2(multiplierRef.current),
+        multiplier: round2(claim ?? multiplierRef.current),
       });
 
       setOutcome(data);
@@ -811,7 +869,55 @@ export default function Aviator() {
       // Keep flying: the player can try again (or the round bursts).
       setError(getApiErrorMessage(requestError, 'Cash out failed — try again.'));
       setPhase('flying');
+    } finally {
+      cashoutBusyRef.current = false;
     }
+  }
+
+  // Keep the frame loop pointed at the latest handler (a ref can't be written
+  // during render, so it is refreshed after every commit).
+  useEffect(() => {
+    cashoutRef.current = handleCashout;
+  });
+
+  // The armed target: null while the toggle is off or the field is out of range.
+  const autoParsed = Number(autoDraft);
+  const autoValid =
+    autoDraft.trim() !== '' &&
+    Number.isFinite(autoParsed) &&
+    autoParsed >= table.minCashout &&
+    autoParsed <= table.crashCap;
+  const autoTarget = autoValid ? round2(autoParsed) : null;
+
+  useEffect(() => {
+    autoTargetRef.current = autoOn ? autoTarget : null;
+  }, [autoOn, autoTarget]);
+
+  // Persist the toggle and the last valid target (never a half-typed value).
+  useEffect(() => {
+    if (autoTarget === null) {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(
+        AUTO_STORAGE_KEY,
+        JSON.stringify({ enabled: autoOn, target: autoTarget }),
+      );
+    } catch {
+      // Private mode: the preference just won't persist.
+    }
+  }, [autoOn, autoTarget]);
+
+  /** On blur: snap a number into range at 2 decimals; anything else resets to the default. */
+  function commitAutoTarget() {
+    if (autoDraft.trim() === '' || !Number.isFinite(autoParsed)) {
+      setAutoDraft(DEFAULT_AUTO_TARGET);
+      return;
+    }
+
+    const snapped = Math.min(Math.max(round2(autoParsed), table.minCashout), table.crashCap);
+    setAutoDraft(snapped.toFixed(2));
   }
 
   const balanceLabel = balance === null ? '···' : money(balance);
@@ -819,6 +925,8 @@ export default function Aviator() {
   const previewStake = stake > 0 ? stake : DEFAULT_BET;
   const flying = phase === 'flying';
   const busy = phase === 'starting' || phase === 'settling';
+  /** The bet chips and the auto cash-out controls are frozen for the whole round. */
+  const roundLocked = busy || flying;
   const canCashOut = flying && multiplier >= table.minCashout;
   /** Live cash-out value (stake × multiplier), floored to the cent. */
   const liveCashout = floorToCent(roundStake * multiplier);
@@ -898,6 +1006,41 @@ export default function Aviator() {
                 <span className="aviator__tag">Place a bet and jump in</span>
               )}
             </div>
+          </div>
+
+          {/* Auto cash-out: locked from the bet until the round settles. */}
+          <div className={`aviator-auto${autoOn ? ' aviator-auto--on' : ''}`}>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={autoOn}
+              aria-label="Auto cash out"
+              className="aviator-auto__switch"
+              onClick={() => setAutoOn((value) => !value)}
+              disabled={roundLocked}
+            >
+              <span className="aviator-auto__knob" aria-hidden="true" />
+            </button>
+
+            <span className="aviator-auto__label">Auto cash out at</span>
+
+            <input
+              className={`aviator-auto__input${autoValid ? '' : ' aviator-auto__input--invalid'}`}
+              type="number"
+              inputMode="decimal"
+              value={autoDraft}
+              onChange={(event) => setAutoDraft(event.target.value)}
+              onBlur={commitAutoTarget}
+              min={table.minCashout}
+              max={table.crashCap}
+              step={0.1}
+              disabled={roundLocked}
+              aria-label="Auto cash out multiplier"
+              aria-invalid={!autoValid}
+            />
+            <span className="aviator-auto__x" aria-hidden="true">
+              x
+            </span>
           </div>
 
           <GameResultOverlay
