@@ -8,6 +8,7 @@ import { GameBottomBar } from '../components/GameBottomBar';
 import { GameResultOverlay } from '../components/GameResultOverlay';
 import { LivePlayerBadge } from '../components/LivePlayerBadge';
 import { SoundToggle } from '../components/SoundToggle';
+import { useAudio } from '../context/audio-context';
 import { playSound } from '../utils/sound';
 
 /**
@@ -124,6 +125,14 @@ export default function Roulette() {
   // direction; `landingIndex` is the segment the server picked.
   const [turns, setTurns] = useState(0);
   const [landingIndex, setLandingIndex] = useState(0);
+
+  // Background music: a looping bed starts on arrival and stops on leave.
+  const { playBgTrack, stopBgTrack } = useAudio();
+
+  useEffect(() => {
+    playBgTrack('/audio/spin-to-win-bgm.mp3', { loop: true, volume: 0.5 });
+    return () => stopBgTrack();
+  }, [playBgTrack, stopBgTrack]);
 
   const segmentDeg = 360 / segments.length;
   const wheelRotation = -(turns * TURNS_PER_SPIN * 360) - landingIndex * segmentDeg;
