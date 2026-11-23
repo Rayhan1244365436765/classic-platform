@@ -17,6 +17,7 @@ import History from './pages/History';
 import Lobby from './pages/Lobby';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ProfilePage from './pages/Profile';
 import Mines from './pages/Mines';
 import Plinko from './pages/Plinko';
 import Roulette from './pages/Roulette';

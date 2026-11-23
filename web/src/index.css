@@ -753,6 +753,8 @@ button:not(:disabled):hover {
     0 0 60px rgb(79 70 229 / 18%),
     inset 0 1px 0 rgb(255 255 255 / 8%);
   overflow: hidden;
+  /* The plane sizes itself from the board's width (cqw). */
+  container-type: inline-size;
   transition: border-color 240ms ease, box-shadow 240ms ease;
 }
 
@@ -804,18 +806,25 @@ button:not(:disabled):hover {
   }
 }
 
+/* The canvas fills whatever box the layout gives the board. Its drawing buffer
+   has the same aspect ratio as that box (Aviator.tsx measures it), so this
+   scaling is uniform — nothing is squashed. It is out of flow on purpose: the
+   board's size comes from the layout, never from the canvas. */
 .aviator__sky {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
 }
 
-/* The jet is a DOM element so its size is pure CSS: 168px on desktop,
-   never below 96px. GPU-composited, no canvas scaling involved. */
+/* The jet is a DOM element so its size is pure CSS, relative to the board it
+   flies in (not the window): 22% of the board's width, between 64 and 100px.
+   GPU-composited, no canvas scaling involved. */
 .aviator__plane {
   position: absolute;
   z-index: 3;
-  width: clamp(96px, 24vw, 168px);
+  width: clamp(80px, 32cqw, 140px);
   height: auto;
   pointer-events: none;
   transform-origin: 50% 50%;
@@ -835,12 +844,6 @@ button:not(:disabled):hover {
 
 .aviator__plane--gone {
   opacity: 0;
-}
-
-@media (max-width: 620px) {
-  .aviator__plane {
-    width: clamp(96px, 30vw, 140px);
-  }
 }
 
 /* Multiplier + status pill, centred over the sky. */
@@ -2419,12 +2422,27 @@ button:not(:disabled):hover {
   text-shadow: 0 4px 18px rgb(0 0 0 / 45%);
 }
 
+.game-card__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
 .game-card__art::after {
   content: '';
   position: absolute;
   inset: 0;
   background: linear-gradient(180deg, rgb(255 255 255 / 10%), transparent 62%);
   pointer-events: none;
+}
+
+.game-card__badge {
+  position: relative;
+  z-index: 2;
 }
 
 .game-card__art--roulette {
@@ -9254,6 +9272,51 @@ button:not(:disabled):hover {
   border-top: 1px solid rgb(240 194 74 / 32%);
   background: linear-gradient(180deg, #10141d 0%, #06080d 100%);
   box-shadow: 0 -18px 44px rgb(0 0 0 / 70%);
+}
+
+/* ---------- Aviator: the sky board fills the screen ----------
+   Same layout as Showdown: the page is one screen tall (the phone frame supplies
+   its own height on desktop), the header and the fixed dock take their share,
+   and the board takes everything left between them. Under the board sit the
+   auto cash-out row and the fair-play line, which keep their natural height. The
+   multiplier HUD is centred in the board by .aviator__hud (inset 0, flex). */
+.rt--aviator {
+  height: 100svh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.rt--aviator .rt__body {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0.5rem 0.4rem 170px;
+}
+
+.rt--aviator .rt__stage {
+  flex: 1 1 auto;
+  align-items: stretch;
+  min-height: 0;
+  width: 100%;
+  gap: 0.4rem;
+}
+
+.rt--aviator .aviator {
+  flex: 1 1 0;
+  width: 100%;
+  min-height: 0;
+  margin-top: 0;
+}
+
+.rt--aviator .aviator-auto,
+.rt--aviator .rt__fair,
+.rt--aviator .error {
+  flex: none;
+}
+
+.rt--aviator .rt__fair {
+  margin: 0;
 }
 
 /* ---------- Showdown: the board fills the screen ----------

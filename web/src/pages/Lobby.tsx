@@ -1,12 +1,12 @@
 import {
-  useCallback,
+  useCallback,import
   useEffect,
   useMemo,
   useState,
   type ComponentType,
   type FormEvent,
 } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, PaymentResponse } from '../api/types';
@@ -38,8 +38,10 @@ type Game = {
   id: string;
   title: string;
   category: Category;
-  /** CSS gradient for the card artwork. */
+  /** CSS gradient for the card artwork (fallback when no image). */
   color: string;
+  /** Optional custom artwork image served from /images/games/. */
+  image?: string;
   /** Emoji stand-in until real artwork exists. */
   icon: string;
   active?: boolean;
@@ -50,22 +52,22 @@ type Game = {
 
 const GAMES: Game[] = [
   { id: 'roulette', title: 'Spin to Win', category: 'live', color: 'linear-gradient(160deg,#ffe08a 0%,#d4af37 34%,#c2410c 76%,#7c1d12 100%)', icon: '🎡', active: true, badge: 'LIVE', path: '/roulette' },
-  { id: 'lucky-slots', title: 'Lucky Slots', category: 'slot', color: 'linear-gradient(135deg,#7c3aed,#2b1055)', icon: '🍒', active: true, badge: 'NEW', path: '/slots' },
+  { id: 'lucky-slots', title: 'Lucky Slots', category: 'slot', color: 'linear-gradient(135deg,#7c3aed,#2b1055)', icon: '🍒', active: true, badge: 'NEW', path: '/slots', image: '/images/lucky-slots.jpg' },
   { id: 'dice', title: 'Dice', category: 'live', color: 'linear-gradient(135deg,#0e7490,#0f2f3d)', icon: '🎲', active: true, badge: 'NEW', path: '/dice' },
-  { id: 'dice3d', title: '3D Dice 🎲', category: 'live', color: 'linear-gradient(135deg,#0f766e,#062a26)', icon: '🎲', active: true, badge: 'NEW', path: '/dice3d' },
-  { id: 'aviator', title: 'Aviator', category: 'live', color: 'linear-gradient(135deg,#b45309,#7c2d12)', icon: '✈️', active: true, badge: 'HOT', path: '/aviator' },
+  { id: 'dice3d', title: '3D Dice 🎲', category: 'live', color: 'linear-gradient(135deg,#0f766e,#062a26)', icon: '🎲', active: true, badge: 'NEW', path: '/dice3d', image: '/images/dice3d.jpg' },
+  { id: 'aviator', title: 'Aviator', category: 'live', color: 'linear-gradient(135deg,#b45309,#7c2d12)', icon: '✈️', active: true, badge: 'HOT', path: '/aviator', image: '/images/aviator.jpg' },
   { id: 'mines', title: 'Mines', category: 'live', color: 'linear-gradient(135deg,#7f1d1d,#0f172a)', icon: '💣', active: true, badge: 'NEW', path: '/mines' },
   { id: 'plinko', title: 'Plinko', category: 'slot', color: 'linear-gradient(135deg,#4f46e5,#111827)', icon: '⚪', active: true, badge: 'NEW', path: '/plinko' },
-  { id: 'keno', title: 'Keno 🔢', category: 'slot', color: 'linear-gradient(135deg,#0e7490,#164e63)', icon: '🎱', active: true, badge: 'NEW', path: '/keno' },
-  { id: 'baccarat', title: 'Baccarat ♠️', category: 'live', color: 'linear-gradient(135deg,#15803d,#14532d)', icon: '♠️', active: true, badge: 'NEW', path: '/baccarat' },
-  { id: 'boxing-king', title: 'Boxing King 🥊', category: 'slot', color: 'linear-gradient(135deg,#b91c1c,#450a0a)', icon: '🥊', active: true, badge: 'NEW', path: '/boxing-king' },
-  { id: 'cascade', title: 'Showdown 🤠', category: 'slot', color: 'linear-gradient(135deg,#a16207,#422006)', icon: '🤠', active: true, badge: 'NEW', path: '/cascade' },
-  { id: 'blackjack', title: 'Blackjack', category: 'live', color: 'linear-gradient(135deg,#166534,#052e16)', icon: '♠️', active: true, badge: 'NEW', path: '/blackjack' },
+  { id: 'keno', title: 'Keno 🔢', category: 'slot', color: 'linear-gradient(135deg,#0e7490,#164e63)', icon: '🎱', active: true, badge: 'NEW', path: '/keno', image: '/images/keno.jpg' },
+  { id: 'baccarat', title: 'Baccarat ♠️', category: 'live', color: 'linear-gradient(135deg,#15803d,#14532d)', icon: '♠️', active: true, badge: 'NEW', path: '/baccarat', image: '/images/baccarat.jpg' },
+  { id: 'boxing-king', title: 'Boxing King 🥊', category: 'slot', color: 'linear-gradient(135deg,#b91c1c,#450a0a)', icon: '🥊', active: true, badge: 'NEW', path: '/boxing-king', image: '/images/boxing-king.jpg' },
+  { id: 'cascade', title: 'Showdown 🤠', category: 'slot', color: 'linear-gradient(135deg,#a16207,#422006)', icon: '🤠', active: true, badge: 'NEW', path: '/cascade', image: '/images/shodown.jpg' },
+  { id: 'blackjack', title: 'Blackjack', category: 'live', color: 'linear-gradient(135deg,#166534,#052e16)', icon: '♠️', active: true, badge: 'NEW', path: '/blackjack', image: '/images/blackjack.jpg' },
   { id: 'pinata-wins', title: 'Pinata Wins', category: 'slot', color: 'linear-gradient(135deg,#db2777,#831843)', icon: '🪅' },
   { id: 'super-teddy', title: 'Super Teddy', category: 'slot', color: 'linear-gradient(135deg,#ea580c,#7c2d12)', icon: '🧸' },
-  { id: 'teenpatti', title: 'Teen Patti 🃏', category: 'live', color: 'linear-gradient(135deg,#0891b2,#164e63)', icon: '🃏', active: true, badge: 'NEW', path: '/teenpatti' },
-  { id: 'dragontiger', title: 'Dragon Tiger 🐉', category: 'live', color: 'linear-gradient(135deg,#4338ca,#1e1b4b)', icon: '🐉', active: true, badge: 'NEW', path: '/dragontiger' },
-  { id: 'fruit-bonanza', title: 'Fruit Bonanza 🍉', category: 'slot', color: 'linear-gradient(135deg,#f59e0b,#7c2d12)', icon: '🍉', active: true, badge: 'NEW', path: '/fruit-bonanza' },
+  { id: 'teenpatti', title: 'Teen Patti 🃏', category: 'live', color: 'linear-gradient(135deg,#0891b2,#164e63)', icon: '🃏', active: true, badge: 'NEW', path: '/teenpatti', image: '/images/teenpatti.jpg' },
+  { id: 'dragontiger', title: 'Dragon Tiger 🐉', category: 'live', color: 'linear-gradient(135deg,#4338ca,#1e1b4b)', icon: '🐉', active: true, badge: 'NEW', path: '/dragontiger', image: '/images/dragon.jpg' },
+  { id: 'fruit-bonanza', title: 'Fruit Bonanza 🍉', category: 'slot', color: 'linear-gradient(135deg,#f59e0b,#7c2d12)', icon: '🍉', active: true, badge: 'NEW', path: '/fruit-bonanza', image: '/images/fruit-banana.jpg' },
   { id: 'fortune-gems', title: 'Fortune Gems 💎', category: 'slot', color: 'linear-gradient(135deg,#d4af37,#5e0f1a)', icon: '💎', active: true, badge: 'NEW', path: '/fortune-gems' },
   { id: 'dragon-tiger', title: 'Dragon Tiger', category: 'live', color: 'linear-gradient(135deg,#dc2626,#4c0519)', icon: '🐉', badge: 'HOT' },
   { id: 'lucky-bingo', title: 'Lucky Bingo', category: 'slot', color: 'linear-gradient(135deg,#7c3aed,#4c1d95)', icon: '🎱' },
@@ -263,12 +265,12 @@ export default function Lobby() {
 
       <div className="lobby__content">
         <header className="lobby__topbar">
-          <div className="lobby__identity">
-            <span className="avatar" aria-hidden="true">
-              <UserIcon className="icon" />
-            </span>
-            <span className="lobby__phone">{phone}</span>
-          </div>
+          <Link to="/profile" className="lobby__identity" style={{ textDecoration: 'none', cursor: 'pointer' }}>
+  <span className="avatar" aria-hidden="true">
+    <UserIcon className="icon" />
+  </span>
+  <span className="lobby__phone">{phone}</span>
+</Link>
 
           <div className="lobby__topbar-right">
             <SoundToggle />
@@ -340,7 +342,11 @@ export default function Lobby() {
                 >
                   <span
                     className={`game-card__art${game.id === 'roulette' ? ' game-card__art--fire' : ''}`}
-                    style={game.id === 'roulette' ? undefined : { backgroundImage: game.color }}
+                    style={
+                      game.id === 'roulette' || game.image
+                        ? undefined
+                        : { backgroundImage: game.color }
+                    }
                   >
                     {game.badge && (
                       <span
@@ -351,12 +357,24 @@ export default function Lobby() {
                         {game.badge}
                       </span>
                     )}
-                    {game.id === 'roulette' ? (
-                      <FireRouletteWheel />
+                    {game.image ? (
+                      <img
+                        className="game-card__img"
+                        src={game.image}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                      />
                     ) : (
-                      <span className="game-card__emoji" aria-hidden="true">
-                        {game.icon}
-                      </span>
+                      <>
+                        {game.id === 'roulette' ? (
+                          <FireRouletteWheel />
+                        ) : (
+                          <span className="game-card__emoji" aria-hidden="true">
+                            {game.icon}
+                          </span>
+                        )}
+                      </>
                     )}
                     {!game.active && (
                       <span className="game-card__lock" aria-hidden="true">
@@ -431,14 +449,16 @@ export default function Lobby() {
           <HistoryIcon className="icon" />
           <span>History</span>
         </button>
-        <button
-          type="button"
-          className="bottom-link"
-          onClick={() => setToast(`${phone} · ${balanceLabel}`)}
-        >
-          <UserIcon className="icon" />
-          <span>Profile</span>
-        </button>
+        <Link to="/profile">
+          <button
+            type="button"
+            className="bottom-link bottom-link--active"
+            onClick={() => navigate('/profile')}
+          >
+            <UserIcon className="icon" />
+            <span>Profile</span>
+          </button>
+        </Link>
       </nav>
 
       {toast && (

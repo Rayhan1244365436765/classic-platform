@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { api, getApiErrorMessage } from '../api/client';
@@ -37,7 +37,13 @@ import {
 const DEFAULT_BET = 10;
 /** Used only if the config request fails — mirrors the backend constants. */
 const FALLBACK_CONFIG: AviatorConfig = { growthTauMs: 5500, crashCap: 100, minCashout: 1.01 };
-/** Logical canvas size; CSS scales it to the container. */
+/**
+ * Logical drawing space. The width is fixed; the height follows the board's
+ * aspect ratio (measured at runtime), so a tall phone board gets a tall canvas
+ * and CSS scales it *uniformly* — nothing is stretched. `CANVAS_H` is the
+ * reference height the scenery density is tuned for, and the starting height
+ * before the board has been measured.
+ */
 const CANVAS_W = 900;
 const CANVAS_H = 430;
 
@@ -107,14 +113,79 @@ function progressOf(multiplier: number, cap: number): number {
 }
 
 /**
- * The arc the jet climbs along (canvas units). The margins leave room for the
- * full jet sprite (~105 units each side) so it never clips at the edges.
+ * The drawing space plus the box the jet's *centre* may travel in (all canvas
+ * units). The pads are derived from the rendered jet sprite, so it never clips
+ * at an edge whatever shape the board is.
  */
-function curvePoint(progress: number): { x: number; y: number } {
+type Geometry = {
+  w: number;
+  h: number;
+  padX: number;
+  padTop: number;
+  padBottom: number;
+  /** CSS pixels per canvas unit (board width ÷ canvas width). */
+  scale: number;
+};
+
+/** Used until the board is measured — close to the original 900×430 layout. */
+const DEFAULT_GEOMETRY: Geometry = {
+  w: CANVAS_W,
+  h: CANVAS_H,
+  padX: 123,
+  padTop: 120,
+  padBottom: 70,
+  scale: 0.8,
+};
+
+/**
+ * Tallest the climb may be relative to its width. On a tall phone board an
+ * unrestricted arc would be near-vertical; this keeps the jet's early climb
+ * from becoming a vertical line and leaves open sky above the flight.
+ */
+const MAX_CLIMB_RATIO = 1.1;
+
+/** The arc the jet climbs along, bottom-left to top-right of its travel box. */
+function curvePoint(progress: number, geo: Geometry): { x: number; y: number } {
+  const spanX = Math.max(1, geo.w - 2 * geo.padX);
+  const spanY = Math.max(1, Math.min(geo.h - geo.padTop - geo.padBottom, MAX_CLIMB_RATIO * spanX));
+
   return {
-    x: 120 + progress * 640,
-    y: CANVAS_H - 70 - progress ** 0.8 * (CANVAS_H - 190),
+    x: geo.padX + progress * spanX,
+    y: geo.h - geo.padBottom - progress ** 0.8 * spanY,
   };
+}
+
+/**
+ * Derives the drawing space from the board's real size in CSS px. The canvas
+ * keeps the board's aspect ratio (height in units = 900 × H ÷ W), so CSS scales
+ * it uniformly and nothing is squashed. The travel-box margins come from the
+ * rendered jet (`planeCssPx` wide, 5:3 sprite): its tilted body and the sine
+ * glide must stay inside the canvas at the end of the climb.
+ */
+function buildGeometry(boardW: number, boardH: number, planeCssPx: number): Geometry {
+  const scale = boardW / CANVAS_W;
+  const h = Math.max(1, Math.round(boardH / scale));
+  const planeW = planeCssPx / scale;
+
+  // The drawn jet is ~0.88 of the sprite's width and ~0.47 of it tall (the SVG
+  // box has transparent margins). Right after take-off the glide can dip it by
+  // WAVE_AMPLITUDE, so the runway margin must cover half its height *plus* that.
+  const padX = planeW * 0.44 + 14;
+  const padBottom = planeW * 0.24 + WAVE_AMPLITUDE + 8;
+  const spanX = Math.max(1, CANVAS_W - 2 * padX);
+
+  // How steep the climb ends, from the room left above the runway. The top
+  // margin is bounded by the tilted jet's half-height (≤ 0.58 × its width).
+  const room = Math.max(1, h - padBottom - (planeW * 0.58 + WAVE_AMPLITUDE + 8));
+  const spanY = Math.min(room, MAX_CLIMB_RATIO * spanX);
+  const endAngle = Math.atan((0.8 * spanY) / spanX);
+
+  // Half the jet's drawn height when tilted by that angle (+ its small pitch), plus the glide.
+  const tilt = endAngle + WAVE_PITCH;
+  const halfHeight = planeW * 0.44 * Math.sin(tilt) + planeW * 0.24 * Math.cos(tilt);
+  const padTop = halfHeight + WAVE_AMPLITUDE + 8;
+
+  return { w: CANVAS_W, h, padX, padTop, padBottom, scale };
 }
 
 /**
@@ -122,10 +193,10 @@ function curvePoint(progress: number): { x: number; y: number } {
  * samples coincide) faded in over the first 4% of the flight, so the jet rotates
  * off the runway instead of snapping.
  */
-function arcAngle(progress: number): number {
+function arcAngle(progress: number, geo: Geometry): number {
   const span = 0.05;
-  const from = curvePoint(Math.max(0, progress - span));
-  const to = curvePoint(Math.min(1, progress + span));
+  const from = curvePoint(Math.max(0, progress - span), geo);
+  const to = curvePoint(Math.min(1, progress + span), geo);
   const dx = to.x - from.x;
   const tangent = dx === 0 ? 0 : Math.atan2(to.y - from.y, dx);
   const ramp = Math.min(1, Math.max(0, progress) / 0.04);
@@ -139,20 +210,27 @@ function planePosition(
   tauMs: number,
   cap: number,
   clock: number,
+  geo: Geometry,
 ): { x: number; y: number; angle: number } {
   const progress = progressOf(multiplierAt(elapsedMs, tauMs), cap);
-  const base = curvePoint(progress);
+  const base = curvePoint(progress, geo);
 
   // Ramp the wave in so the jet waits still on the runway, then glides.
   const ramp = Math.min(1, progress / 0.05);
   const pace = clock / WAVE_PERIOD_MS;
   const wave = Math.sin(pace) * WAVE_AMPLITUDE * ramp;
 
-  return { x: base.x, y: base.y + wave, angle: arcAngle(progress) + Math.cos(pace) * WAVE_PITCH };
+  return {
+    x: base.x,
+    y: base.y + wave,
+    angle: arcAngle(progress, geo) + Math.cos(pace) * WAVE_PITCH,
+  };
 }
 
 /** Where the jet waits before take-off. */
-const RUNWAY = curvePoint(0);
+function runway(geo: Geometry): { x: number; y: number } {
+  return curvePoint(0, geo);
+}
 
 async function fetchBalance(): Promise<number> {
   const { data } = await api.get<BalanceResponse>('/wallet/balance');
@@ -181,11 +259,13 @@ function scatter(seed: number): () => number {
   };
 }
 
+// Generated for the tallest board; `y` is 0–1 and scaled to the real height at
+// draw time. The first entries are the original field, so short boards look as before.
 const STAR_FIELD: Star[] = (() => {
   const next = scatter(7331);
-  return Array.from({ length: 64 }, () => ({
+  return Array.from({ length: 220 }, () => ({
     x: next() * CANVAS_W,
-    y: next() * CANVAS_H * 0.82 + 6,
+    y: next(),
     radius: 0.6 + next() * 1.5,
     phase: next() * Math.PI * 2,
     speed: 900 + next() * 2100,
@@ -194,8 +274,8 @@ const STAR_FIELD: Star[] = (() => {
 
 const SPEED_LINES: SpeedLine[] = (() => {
   const next = scatter(4177);
-  return Array.from({ length: 22 }, () => ({
-    y: next() * CANVAS_H,
+  return Array.from({ length: 70 }, () => ({
+    y: next(),
     x: next() * CANVAS_W,
     length: 40 + next() * 110,
     speed: 260 + next() * 420,
@@ -205,9 +285,9 @@ const SPEED_LINES: SpeedLine[] = (() => {
 
 const CLOUDS: Cloud[] = (() => {
   const next = scatter(20261);
-  return Array.from({ length: 6 }, () => ({
+  return Array.from({ length: 18 }, () => ({
     x: next() * (CANVAS_W + 300),
-    y: 40 + next() * (CANVAS_H - 150),
+    y: next(),
     scale: 0.55 + next() * 0.7,
     speed: 14 + next() * 26,
     alpha: 0.1 + next() * 0.11,
@@ -269,46 +349,54 @@ function getCloudSprite(): HTMLCanvasElement | null {
   return cloudSprite;
 }
 
-function drawSky(ctx: CanvasRenderingContext2D): void {
-  const sky = ctx.createLinearGradient(0, 0, CANVAS_W * 0.35, CANVAS_H);
+function drawSky(ctx: CanvasRenderingContext2D, geo: Geometry): void {
+  const h = geo.h;
+  const sky = ctx.createLinearGradient(0, 0, CANVAS_W * 0.35, h);
   sky.addColorStop(0, '#0b1030');
   sky.addColorStop(0.45, '#0a0f26');
   sky.addColorStop(0.78, '#0d0a20');
   sky.addColorStop(1, '#05060f');
   ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  ctx.fillRect(0, 0, CANVAS_W, h);
 
   const nebulaA = ctx.createRadialGradient(140, 60, 10, 140, 60, 340);
   nebulaA.addColorStop(0, 'rgba(99, 102, 241, 0.22)');
   nebulaA.addColorStop(1, 'rgba(99, 102, 241, 0)');
   ctx.fillStyle = nebulaA;
-  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  ctx.fillRect(0, 0, CANVAS_W, h);
 
   const nebulaB = ctx.createRadialGradient(760, 40, 10, 760, 40, 320);
   nebulaB.addColorStop(0, 'rgba(168, 85, 247, 0.2)');
   nebulaB.addColorStop(1, 'rgba(168, 85, 247, 0)');
   ctx.fillStyle = nebulaB;
-  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  ctx.fillRect(0, 0, CANVAS_W, h);
 
-  const horizon = ctx.createLinearGradient(0, CANVAS_H - 90, 0, CANVAS_H);
+  const horizon = ctx.createLinearGradient(0, h - 90, 0, h);
   horizon.addColorStop(0, 'rgba(56, 189, 248, 0)');
   horizon.addColorStop(1, 'rgba(56, 189, 248, 0.14)');
   ctx.fillStyle = horizon;
-  ctx.fillRect(0, CANVAS_H - 90, CANVAS_W, 90);
+  ctx.fillRect(0, h - 90, CANVAS_W, 90);
 
   // Runway line.
   ctx.strokeStyle = 'rgba(148, 163, 184, 0.25)';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(0, CANVAS_H - 30);
-  ctx.lineTo(CANVAS_W, CANVAS_H - 30);
+  ctx.moveTo(0, h - 30);
+  ctx.lineTo(CANVAS_W, h - 30);
   ctx.stroke();
 }
 
-function drawStars(ctx: CanvasRenderingContext2D, now: number, intensity: number): void {
+function drawStars(
+  ctx: CanvasRenderingContext2D,
+  now: number,
+  intensity: number,
+  geo: Geometry,
+): void {
   const driftSpeed = Math.min(1.6, intensity);
+  // Same density at any height: 64 stars per 430 units, so a taller board gets more.
+  const count = Math.min(STAR_FIELD.length, Math.round((64 * geo.h) / CANVAS_H));
 
-  for (const star of STAR_FIELD) {
+  for (const star of STAR_FIELD.slice(0, count)) {
     const travel =
       ((star.x - (now * star.speed * 0.012 * driftSpeed) / 1000) % CANVAS_W + CANVAS_W) % CANVAS_W;
     const twinkle = 0.45 + 0.55 * Math.abs(Math.sin(now / star.speed + star.phase));
@@ -316,41 +404,55 @@ function drawStars(ctx: CanvasRenderingContext2D, now: number, intensity: number
     ctx.globalAlpha = twinkle;
     ctx.fillStyle = star.radius > 1.5 ? '#e0f2fe' : '#cbd5e1';
     ctx.beginPath();
-    ctx.arc(travel, star.y, star.radius, 0, Math.PI * 2);
+    ctx.arc(travel, star.y * geo.h * 0.82 + 6, star.radius, 0, Math.PI * 2);
     ctx.fill();
   }
 
   ctx.globalAlpha = 1;
 }
 
-function drawClouds(ctx: CanvasRenderingContext2D, now: number, intensity: number): void {
+function drawClouds(
+  ctx: CanvasRenderingContext2D,
+  now: number,
+  intensity: number,
+  geo: Geometry,
+): void {
   const sprite = getCloudSprite();
   if (!sprite) {
     return;
   }
 
   const span = CANVAS_W + 360;
+  const count = Math.min(CLOUDS.length, Math.round((6 * geo.h) / CANVAS_H));
 
-  for (const cloud of CLOUDS) {
+  for (const cloud of CLOUDS.slice(0, count)) {
     const travel = (cloud.x - (now * cloud.speed * Math.min(2.2, intensity)) / 1000) % span;
     const x = ((travel + span) % span) - 180;
     const width = sprite.width * cloud.scale * 0.55;
     const height = sprite.height * cloud.scale * 0.55;
 
     ctx.globalAlpha = cloud.alpha;
-    ctx.drawImage(sprite, x - width / 2, cloud.y - height / 2, width, height);
+    const y = 40 + cloud.y * (geo.h - 150);
+    ctx.drawImage(sprite, x - width / 2, y - height / 2, width, height);
   }
 
   ctx.globalAlpha = 1;
 }
 
-function drawSpeedLines(ctx: CanvasRenderingContext2D, now: number, intensity: number): void {
+function drawSpeedLines(
+  ctx: CanvasRenderingContext2D,
+  now: number,
+  intensity: number,
+  geo: Geometry,
+): void {
   if (intensity <= 0) {
     return;
   }
 
+  const count = Math.min(SPEED_LINES.length, Math.round((22 * geo.h) / CANVAS_H));
+
   ctx.lineCap = 'round';
-  for (const line of SPEED_LINES) {
+  for (const line of SPEED_LINES.slice(0, count)) {
     const travel =
       ((line.x - (now * line.speed * intensity) / 1000) % (CANVAS_W + line.length) +
         CANVAS_W +
@@ -361,8 +463,9 @@ function drawSpeedLines(ctx: CanvasRenderingContext2D, now: number, intensity: n
     ctx.strokeStyle = `rgba(186, 230, 253, ${line.alpha * Math.min(1, intensity)})`;
     ctx.lineWidth = 1.4;
     ctx.beginPath();
-    ctx.moveTo(x, line.y);
-    ctx.lineTo(x + line.length * (0.5 + intensity * 0.3), line.y);
+    const y = line.y * geo.h;
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + line.length * (0.5 + intensity * 0.3), y);
     ctx.stroke();
   }
 }
@@ -507,11 +610,13 @@ type Scene = {
   crashedAt: number | null;
   /** Recorded plane path in canvas units. */
   trail: Point[];
+  /** The drawing space for the board's current size. */
+  geo: Geometry;
 };
 
 function paintScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
-  const { now, phase, crashedAt, trail } = scene;
-  const head = trail.length > 0 ? trail[trail.length - 1]! : RUNWAY;
+  const { now, phase, crashedAt, trail, geo } = scene;
+  const head = trail.length > 0 ? trail[trail.length - 1]! : runway(geo);
 
   const throttled = phase === 'flying' || phase === 'settling';
   const sinceCrash = crashedAt === null ? 0 : now - crashedAt;
@@ -519,12 +624,12 @@ function paintScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
   const intensity = throttled ? 2.4 : 0.25;
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+  ctx.clearRect(0, 0, CANVAS_W, geo.h);
 
-  drawSky(ctx);
-  drawStars(ctx, now, intensity);
-  drawClouds(ctx, now, intensity);
-  drawSpeedLines(ctx, now, intensity);
+  drawSky(ctx, geo);
+  drawStars(ctx, now, intensity, geo);
+  drawClouds(ctx, now, intensity, geo);
+  drawSpeedLines(ctx, now, intensity, geo);
 
   drawTrail(ctx, trail, trailFade);
 
@@ -597,7 +702,16 @@ export default function Aviator() {
   const [autoDraft, setAutoDraft] = useState(() => readAutoCashout().target);
 
   /** Plane position in canvas units — drives both the DOM jet and the trail. */
-  const [plane, setPlane] = useState<Point & { angle: number }>({ ...RUNWAY, angle: 0 });
+  const [plane, setPlane] = useState<Point & { angle: number }>({
+    ...runway(DEFAULT_GEOMETRY),
+    angle: 0,
+  });
+
+  /** The drawing space, re-derived whenever the board's real size changes. */
+  const [geo, setGeo] = useState<Geometry>(DEFAULT_GEOMETRY);
+  const geoRef = useRef<Geometry>(DEFAULT_GEOMETRY);
+  const boardRef = useRef<HTMLDivElement | null>(null);
+  const planeRef = useRef<HTMLDivElement | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const startRef = useRef(0);
@@ -676,6 +790,69 @@ export default function Aviator() {
     }
   }, [phase]);
 
+  // Size the drawing space to the board. `measureRef` holds the latest measuring
+  // function so both the ResizeObserver and the "round finished" effect can call it.
+  const measureRef = useRef<() => void>(() => undefined);
+
+  useLayoutEffect(() => {
+    measureRef.current = () => {
+      const board = boardRef.current;
+      const jet = planeRef.current;
+      if (!board || !jet) {
+        return;
+      }
+
+      // Mid-round the path and trail are in the current units: re-measure once it settles.
+      const current = phaseRef.current;
+      if (current === 'starting' || current === 'flying' || current === 'settling') {
+        return;
+      }
+
+      const width = board.clientWidth;
+      const height = board.clientHeight;
+      if (width < 50 || height < 50) {
+        return;
+      }
+
+      const next = buildGeometry(width, height, jet.offsetWidth);
+      const prev = geoRef.current;
+      const same =
+        next.h === prev.h &&
+        Math.abs(next.scale - prev.scale) < 0.001 &&
+        Math.abs(next.padX - prev.padX) < 0.5 &&
+        Math.abs(next.padTop - prev.padTop) < 0.5;
+      if (same) {
+        return;
+      }
+
+      geoRef.current = next;
+      setGeo(next);
+      // Old-unit trail and jet position no longer apply: park the jet on the runway.
+      trailRef.current = [];
+      setPlane({ ...runway(next), angle: 0 });
+    };
+  });
+
+  useEffect(() => {
+    const board = boardRef.current;
+    if (!board || typeof ResizeObserver === 'undefined') {
+      return undefined;
+    }
+
+    // Fires once on observe (the first measurement) and then on every resize.
+    const observer = new ResizeObserver(() => measureRef.current());
+    observer.observe(board);
+
+    return () => observer.disconnect();
+  }, []);
+
+  // A resize that arrived mid-round is applied as soon as the round is over.
+  useEffect(() => {
+    if (phase === 'idle' || phase === 'cashed_out' || phase === 'crashed') {
+      measureRef.current();
+    }
+  }, [phase]);
+
   // One animation-frame loop owns the canvas: sky, stars, clouds, speed lines,
   // fire trail and the burst. The jet itself is a DOM element, so the artwork
   // never depends on the React re-renders that update the HUD.
@@ -693,6 +870,7 @@ export default function Aviator() {
         phase: phaseRef.current,
         crashedAt: crashedAtRef.current,
         trail: trailRef.current,
+        geo: geoRef.current,
       });
 
       frame = window.requestAnimationFrame(render);
@@ -740,7 +918,7 @@ export default function Aviator() {
     const tick = (now: number) => {
       const elapsed = performance.now() - startRef.current;
       const current = multiplierAt(elapsed, tauRef.current);
-      const position = planePosition(elapsed, tauRef.current, table.crashCap, now);
+      const position = planePosition(elapsed, tauRef.current, table.crashCap, now, geoRef.current);
 
       multiplierRef.current = current;
       setMultiplier(current);
@@ -799,7 +977,7 @@ export default function Aviator() {
     setRoundStake(round2(stake));
     setMultiplier(1);
     multiplierRef.current = 1;
-    setPlane({ ...RUNWAY, angle: 0 });
+    setPlane({ ...runway(geoRef.current), angle: 0 });
     trailRef.current = [];
     setPhase('starting');
 
@@ -819,7 +997,9 @@ export default function Aviator() {
 
       const elapsed = performance.now() - requestedAt;
       multiplierRef.current = multiplierAt(elapsed, data.growthTauMs);
-      setPlane(planePosition(elapsed, data.growthTauMs, table.crashCap, performance.now()));
+      setPlane(
+        planePosition(elapsed, data.growthTauMs, table.crashCap, performance.now(), geoRef.current),
+      );
 
       setRoundId(data.roundId);
       setSeedHash(data.serverSeedHash);
@@ -933,8 +1113,8 @@ export default function Aviator() {
 
   // Position the DOM jet in % of the canvas box (identical mapping to the trail).
   const planeStyle = {
-    left: `${(plane.x / CANVAS_W) * 100}%`,
-    top: `${(plane.y / CANVAS_H) * 100}%`,
+    left: `${(plane.x / geo.w) * 100}%`,
+    top: `${(plane.y / geo.h) * 100}%`,
     transform: `translate(-50%, -50%) rotate(${(plane.angle * 180) / Math.PI}deg)`,
   };
 
@@ -966,14 +1146,16 @@ export default function Aviator() {
       <main className="rt__body">
         <section className="rt__stage">
           <div
+            ref={boardRef}
             className={`aviator${flying ? ' aviator--flying' : ''}${
               phase === 'crashed' ? ' aviator--crashed' : ''
             }`}
           >
-            <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H} className="aviator__sky" />
+            <canvas ref={canvasRef} width={CANVAS_W} height={geo.h} className="aviator__sky" />
 
             {/* The jet: a DOM element, sized in CSS px, gliding on the sine wave. */}
             <div
+              ref={planeRef}
               className={`aviator__plane${phase === 'crashed' ? ' aviator__plane--gone' : ''}`}
               style={planeStyle}
             >
