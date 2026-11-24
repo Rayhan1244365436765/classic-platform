@@ -10,7 +10,7 @@ import {
 } from '../../../common/provably-fair/index.js';
 import { AppError } from '../../../common/utils/AppError.js';
 import { withTransaction } from '../../../config/db.js';
-import { getGameConfig } from '../../config/config.service.js';
+import { getGameConfig } from '../../config/config.store.js';
 import { createTransaction, getBalance, lockUser } from '../../wallet/wallet.service.js';
 
 /**

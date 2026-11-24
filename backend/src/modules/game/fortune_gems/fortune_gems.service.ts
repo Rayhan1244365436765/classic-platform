@@ -10,6 +10,7 @@ import {
 } from '../../../common/provably-fair/index.js';
 import { AppError } from '../../../common/utils/AppError.js';
 import { withTransaction } from '../../../config/db.js';
+import { getGameConfig } from '../../config/config.store.js';
 import { createTransaction, getBalance, lockUser } from '../../wallet/wallet.service.js';
 
 /**
@@ -91,6 +92,13 @@ export const FORTUNE_PAYS = {
   /** 10+ symbols. */
   huge: 265,
 } as const;
+
+export type FortunePayTable = { small: number; medium: number; large: number; huge: number };
+
+/** Cluster pays: admin-configurable (`fortune_gems` row), falling back to the shipped table. */
+export function fortunePays(): FortunePayTable {
+  return getGameConfig<FortunePayTable>('fortune_gems') ?? FORTUNE_PAYS;
+}
 
 /**
  * Mean number of paying clusters per board, measured over 4,000,000 sampled
@@ -179,7 +187,7 @@ export function clusterTier(size: number): FortuneTier | null {
 export function clusterPay(size: number): number {
   const tier = clusterTier(size);
 
-  return tier === null ? 0 : FORTUNE_PAYS[tier];
+  return tier === null ? 0 : fortunePays()[tier];
 }
 
 /**
@@ -219,7 +227,7 @@ export function findClusters(grid: readonly FortuneSymbol[]): FortuneCluster[] {
         cells,
         size: cells.length,
         tier,
-        pay: FORTUNE_PAYS[tier],
+        pay: fortunePays()[tier],
       });
     }
   }
@@ -228,12 +236,12 @@ export function findClusters(grid: readonly FortuneSymbol[]): FortuneCluster[] {
 }
 
 /** Theoretical RTP of the shipped paytable (0.9778 = 97.78%). */
-export function fortuneGemsRtp(): number {
+export function fortuneGemsRtp(pays: FortunePayTable = fortunePays()): number {
   return (
-    FORTUNE_PAYS.small * FORTUNE_FREQUENCY.small +
-    FORTUNE_PAYS.medium * FORTUNE_FREQUENCY.medium +
-    FORTUNE_PAYS.large * FORTUNE_FREQUENCY.large +
-    FORTUNE_PAYS.huge * FORTUNE_FREQUENCY.huge
+    pays.small * FORTUNE_FREQUENCY.small +
+    pays.medium * FORTUNE_FREQUENCY.medium +
+    pays.large * FORTUNE_FREQUENCY.large +
+    pays.huge * FORTUNE_FREQUENCY.huge
   );
 }
 
@@ -245,7 +253,7 @@ export function fortuneGemsConfig(): {
   cells: number;
   outcomes: number;
   minCluster: number;
-  pays: typeof FORTUNE_PAYS;
+  pays: FortunePayTable;
   briefPays: typeof BRIEF_PAYS;
   frequency: typeof FORTUNE_FREQUENCY;
   hitRate: number;
@@ -261,7 +269,7 @@ export function fortuneGemsConfig(): {
     cells: FORTUNE_CELLS,
     outcomes: FORTUNE_OUTCOMES,
     minCluster: MIN_CLUSTER,
-    pays: FORTUNE_PAYS,
+    pays: fortunePays(),
     briefPays: BRIEF_PAYS,
     frequency: FORTUNE_FREQUENCY,
     hitRate: HIT_RATE,

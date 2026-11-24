@@ -10,6 +10,7 @@ import {
 } from '../../../common/provably-fair/index.js';
 import { AppError } from '../../../common/utils/AppError.js';
 import { withTransaction } from '../../../config/db.js';
+import { getGameConfig } from '../../config/config.store.js';
 import { createTransaction, getBalance, lockUser } from '../../wallet/wallet.service.js';
 
 /**
@@ -44,6 +45,11 @@ export const DICE_PAYTABLE = {
   multiplier: 1.95,
 } as const;
 
+/** Win multiplier: admin-configurable (`dice` row), falling back to the built-in table. */
+function diceMultiplier(): number {
+  return getGameConfig<{ multiplier: number }>('dice')?.multiplier ?? DICE_PAYTABLE.multiplier;
+}
+
 export type DiceResult = {
   /** The rolled number, 1–100. */
   roll: number;
@@ -71,7 +77,7 @@ export function diceConfig(): {
     faces: DICE_FACES,
     min: 1,
     max: DICE_FACES,
-    multiplier: DICE_PAYTABLE.multiplier,
+    multiplier: diceMultiplier(),
     houseNumber: DICE_HOUSE_NUMBER,
     high: { min: DICE_HOUSE_NUMBER + 1, max: DICE_FACES },
     low: { min: 1, max: DICE_HOUSE_NUMBER - 1 },
@@ -82,11 +88,11 @@ export function diceConfig(): {
  * Theoretical return-to-player for one side. Server-side only — never part of a
  * player-facing response.
  */
-export function diceRtp(prediction: DicePrediction): number {
+export function diceRtp(prediction: DicePrediction, multiplier: number = diceMultiplier()): number {
   const winningNumbers =
     prediction === 'high' ? DICE_FACES - DICE_HOUSE_NUMBER : DICE_HOUSE_NUMBER - 1;
 
-  return (winningNumbers / DICE_FACES) * DICE_PAYTABLE.multiplier;
+  return (winningNumbers / DICE_FACES) * multiplier;
 }
 
 /** Win condition + multiplier for a roll. */
@@ -97,7 +103,7 @@ export function evaluateRoll(
   const won =
     prediction === 'high' ? roll > DICE_HOUSE_NUMBER : roll < DICE_HOUSE_NUMBER;
 
-  return { won, multiplier: won ? DICE_PAYTABLE.multiplier : 0 };
+  return { won, multiplier: won ? diceMultiplier() : 0 };
 }
 
 /** Spin the dice once. */

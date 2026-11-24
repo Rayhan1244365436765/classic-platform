@@ -10,6 +10,7 @@ import {
 } from '../../../common/provably-fair/index.js';
 import { AppError } from '../../../common/utils/AppError.js';
 import { withTransaction } from '../../../config/db.js';
+import { getGameConfig } from '../../config/config.store.js';
 import { createTransaction, getBalance, lockUser } from '../../wallet/wallet.service.js';
 
 /**
@@ -159,10 +160,19 @@ export type CascadeResult = {
 
 const TOTAL_WEIGHT = CASCADE_SYMBOLS.reduce((sum, symbol) => sum + symbol.weight, 0);
 
-/** Table pay for a cluster of `size`, in bet multiples. */
+/**
+ * Admin-configurable Showdown setting (`cascade` row): `payScale` multiplies every
+ * table pay. The cluster pays were calibrated by simulation to `CASCADE_RTP`, and
+ * RTP is linear in the pays, so the effective RTP is `CASCADE_RTP × payScale`.
+ */
+export function cascadePayScale(): number {
+  return getGameConfig<{ payScale: number }>('cascade')?.payScale ?? 1;
+}
+
+/** Table pay for a cluster of `size`, in bet multiples (before the cascade multiplier). */
 export function clusterPay(symbol: CascadeSymbolId, size: number): number {
   const row = CASCADE_PAYS[symbol];
-  return row[Math.min(size, 8) - MIN_CLUSTER]!;
+  return round4(row[Math.min(size, 8) - MIN_CLUSTER]! * cascadePayScale());
 }
 
 /** Orthogonal neighbours of a cell. */
@@ -252,6 +262,16 @@ export function collapseGrid(
   return next as CascadeSymbolId[];
 }
 
+/** The pay table the client shows: the built-in one with the admin scale applied. */
+function scaledCascadePays(): Record<CascadeSymbolId, readonly number[]> {
+  const scale = cascadePayScale();
+  if (scale === 1) return CASCADE_PAYS;
+
+  return Object.fromEntries(
+    Object.entries(CASCADE_PAYS).map(([symbol, row]) => [symbol, row.map((pay) => round4(pay * scale))]),
+  ) as unknown as Record<CascadeSymbolId, readonly number[]>;
+}
+
 /** Symbols, geometry, multiplier ladder, pay table and the measured RTP. */
 export function cascadeConfig(): {
   cols: number;
@@ -273,8 +293,8 @@ export function cascadeConfig(): {
     maxCascades: MAX_CASCADES,
     multipliers: CASCADE_MULTIPLIERS,
     symbols: CASCADE_SYMBOLS.map(({ id, glyph }) => ({ id, glyph })),
-    pays: CASCADE_PAYS,
-    rtp: CASCADE_RTP,
+    pays: scaledCascadePays(),
+    rtp: CASCADE_RTP * cascadePayScale(),
     rtpRounds: CASCADE_RTP_ROUNDS,
   };
 }

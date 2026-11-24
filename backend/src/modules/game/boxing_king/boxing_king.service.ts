@@ -10,6 +10,7 @@ import {
 } from '../../../common/provably-fair/index.js';
 import { AppError } from '../../../common/utils/AppError.js';
 import { withTransaction } from '../../../config/db.js';
+import { getGameConfig } from '../../config/config.store.js';
 import { createTransaction, getBalance, lockUser } from '../../wallet/wallet.service.js';
 
 /**
@@ -80,6 +81,13 @@ export const CLUSTER_PAYS = {
   large: 30,
 } as const;
 
+export type BoxingPayTable = { small: number; medium: number; large: number };
+
+/** Cluster pays: admin-configurable (`boxing_king` row), falling back to the shipped table. */
+export function boxingPays(): BoxingPayTable {
+  return getGameConfig<BoxingPayTable>('boxing_king') ?? CLUSTER_PAYS;
+}
+
 /**
  * Mean number of paying clusters per grid, measured over all 10,077,696 boards.
  * Baked here so the RTP is a closed form; the verifier re-derives them exactly.
@@ -134,9 +142,10 @@ export type BoxingKingResult = {
 
 /** Pay for a cluster of `size` symbols. */
 export function clusterPay(size: number): number {
-  if (size >= 7) return CLUSTER_PAYS.large;
-  if (size >= 5) return CLUSTER_PAYS.medium;
-  if (size >= MIN_CLUSTER) return CLUSTER_PAYS.small;
+  const pays = boxingPays();
+  if (size >= 7) return pays.large;
+  if (size >= 5) return pays.medium;
+  if (size >= MIN_CLUSTER) return pays.small;
 
   return 0;
 }
@@ -182,11 +191,11 @@ export function findClusters(grid: readonly BoxingSymbol[]): BoxingCluster[] {
 const HIT_RATE = 0.378676;
 
 /** Theoretical RTP of the paytable (≈0.9742 = 97.42%). */
-export function boxingKingRtp(): number {
+export function boxingKingRtp(pays: BoxingPayTable = boxingPays()): number {
   return (
-    CLUSTER_PAYS.small * CLUSTER_FREQUENCY.small +
-    CLUSTER_PAYS.medium * CLUSTER_FREQUENCY.medium +
-    CLUSTER_PAYS.large * CLUSTER_FREQUENCY.large
+    pays.small * CLUSTER_FREQUENCY.small +
+    pays.medium * CLUSTER_FREQUENCY.medium +
+    pays.large * CLUSTER_FREQUENCY.large
   );
 }
 
@@ -196,7 +205,7 @@ export function boxingKingConfig(): {
   cells: number;
   outcomes: number;
   minCluster: number;
-  pays: typeof CLUSTER_PAYS;
+  pays: BoxingPayTable;
   frequency: typeof CLUSTER_FREQUENCY;
   hitRate: number;
   rtp: number;
@@ -209,7 +218,7 @@ export function boxingKingConfig(): {
     cells: BOXING_CELLS,
     outcomes: BOXING_OUTCOMES,
     minCluster: MIN_CLUSTER,
-    pays: CLUSTER_PAYS,
+    pays: boxingPays(),
     frequency: CLUSTER_FREQUENCY,
     hitRate: HIT_RATE,
     rtp,

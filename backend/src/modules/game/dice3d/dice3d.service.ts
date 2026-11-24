@@ -10,6 +10,7 @@ import {
 } from '../../../common/provably-fair/index.js';
 import { AppError } from '../../../common/utils/AppError.js';
 import { withTransaction } from '../../../config/db.js';
+import { getGameConfig } from '../../config/config.store.js';
 import { createTransaction, getBalance, lockUser } from '../../wallet/wallet.service.js';
 
 /**
@@ -79,6 +80,24 @@ export const SUM_PAYS: Readonly<Record<number, number>> = {
   18: 210,
 };
 
+/**
+ * Admin-configurable 3D Dice settings (`dice3d` row): `highLowPay` (default 2) and
+ * `sumPays` (a pay for each total 3–18; defaults to `SUM_PAYS`).
+ */
+export type Dice3dGameConfig = {
+  highLowPay: number;
+  sumPays: Record<string, number>;
+};
+
+export function highLowPay(): number {
+  return getGameConfig<Dice3dGameConfig>('dice3d')?.highLowPay ?? HIGH_LOW_PAY;
+}
+
+/** Pay for an exact total (config value, else the shipped table). */
+export function sumPay(sum: number): number {
+  return getGameConfig<Dice3dGameConfig>('dice3d')?.sumPays?.[String(sum)] ?? SUM_PAYS[sum]!;
+}
+
 /** How many of the 216 rolls produce each total. */
 export const SUM_COMBOS: Readonly<Record<number, number>> = {
   3: 1,
@@ -123,11 +142,11 @@ export type Dice3dResult = {
 /** Theoretical RTP of a bet, from the outcome table above. */
 export function dice3dRtp(bet: Dice3dBet): number {
   if (bet.kind === 'sum') {
-    return (SUM_COMBOS[bet.sum]! * SUM_PAYS[bet.sum]!) / ROLL_OUTCOMES;
+    return (SUM_COMBOS[bet.sum]! * sumPay(bet.sum)) / ROLL_OUTCOMES;
   }
 
   // 108 combos per half, minus the three triples that fall inside it.
-  return ((108 - 3) * HIGH_LOW_PAY) / ROLL_OUTCOMES;
+  return ((108 - 3) * highLowPay()) / ROLL_OUTCOMES;
 }
 
 /** Table, paytable and exact odds — everything the client renders. */
@@ -141,18 +160,19 @@ export function dice3dConfig(): {
   sums: Array<{ sum: number; combos: number; pay: number; chance: number; rtp: number }>;
 } {
   const highChance = (108 - 3) / ROLL_OUTCOMES;
+  const hlPay = highLowPay();
 
   return {
     dice: DICE_COUNT,
     faces: DIE_FACES,
     outcomes: ROLL_OUTCOMES,
     triplesLoseHighLow: true,
-    high: { from: 11, to: 18, pay: HIGH_LOW_PAY, chance: highChance, rtp: highChance * HIGH_LOW_PAY },
-    low: { from: 3, to: 10, pay: HIGH_LOW_PAY, chance: highChance, rtp: highChance * HIGH_LOW_PAY },
+    high: { from: 11, to: 18, pay: hlPay, chance: highChance, rtp: highChance * hlPay },
+    low: { from: 3, to: 10, pay: hlPay, chance: highChance, rtp: highChance * hlPay },
     sums: Object.keys(SUM_COMBOS).map((key) => {
       const sum = Number(key);
       const combos = SUM_COMBOS[sum]!;
-      const pay = SUM_PAYS[sum]!;
+      const pay = sumPay(sum);
 
       return { sum, combos, pay, chance: combos / ROLL_OUTCOMES, rtp: (combos * pay) / ROLL_OUTCOMES };
     }),
@@ -170,7 +190,7 @@ export function evaluateDice3d(
   if (bet.kind === 'sum') {
     const won = sum === bet.sum;
 
-    return { sum, triple, won, multiplier: won ? SUM_PAYS[bet.sum]! : 0, tripleVoided: false };
+    return { sum, triple, won, multiplier: won ? sumPay(bet.sum) : 0, tripleVoided: false };
   }
 
   const inRange = bet.kind === 'high' ? sum >= 11 : sum <= 10;
@@ -184,7 +204,7 @@ export function evaluateDice3d(
     sum,
     triple,
     won: inRange,
-    multiplier: inRange ? HIGH_LOW_PAY : 0,
+    multiplier: inRange ? highLowPay() : 0,
     tripleVoided: false,
   };
 }

@@ -10,6 +10,7 @@ import {
 } from '../../../common/provably-fair/index.js';
 import { AppError } from '../../../common/utils/AppError.js';
 import { withTransaction } from '../../../config/db.js';
+import { getGameConfig } from '../../config/config.store.js';
 import { createTransaction, getBalance, lockUser } from '../../wallet/wallet.service.js';
 
 /**
@@ -48,6 +49,18 @@ export const CRASH_CAP = 100;
 
 /** Lowest multiplier that can be cashed out (1.00 would be a free round). */
 export const MIN_CASHOUT = 1.01;
+
+/**
+ * Share of the stake returned to players: the crash multiplier is
+ * `returnFactor × 100 / (100 − roll)`, so a player cashing out at any fixed
+ * multiplier `m` wins with probability `returnFactor / m` — RTP ≈ `returnFactor`.
+ * Built-in default; the admin can override it (`game_configs` row `aviator`).
+ */
+export const CRASH_RETURN_FACTOR = 0.95;
+
+function crashReturnFactor(): number {
+  return getGameConfig<{ returnFactor: number }>('aviator')?.returnFactor ?? CRASH_RETURN_FACTOR;
+}
 
 /** Round state stored in `game_rounds.status`. */
 export type AviatorStatus = 'pending' | 'cashed_out' | 'crashed';
@@ -98,7 +111,7 @@ export function aviatorConfig(): {
 
 /** Crash point from a uniform roll in `[0, 100)`. */
 export function computeCrashPoint(roll: number): number {
-  const raw = (100 / (100 - roll)) * 0.95;
+  const raw = (100 / (100 - roll)) * crashReturnFactor();
 
   // Never below 1.00, never above the cap, and rounded *down* to 2 decimals.
   return Math.max(1, floor2(Math.min(CRASH_CAP, raw)));

@@ -10,6 +10,7 @@ import {
 } from '../../../common/provably-fair/index.js';
 import { AppError } from '../../../common/utils/AppError.js';
 import { withTransaction } from '../../../config/db.js';
+import { getGameConfig } from '../../config/config.store.js';
 import { createTransaction, getBalance, lockUser } from '../../wallet/wallet.service.js';
 
 /**
@@ -77,6 +78,13 @@ export const FRUIT_PAYS = {
   two: 0.2,
 } as const;
 
+export type FruitPayTable = { three: number; two: number };
+
+/** Line pays: admin-configurable (`fruit_bonanza` row), falling back to the shipped table. */
+export function fruitPays(): FruitPayTable {
+  return getGameConfig<FruitPayTable>('fruit_bonanza') ?? FRUIT_PAYS;
+}
+
 export const FRUIT_CELLS = 9;
 export const FRUIT_LINE_COUNT = FRUIT_LINES.length;
 
@@ -117,12 +125,12 @@ export type FruitBonanzaResult = {
 const NONCE = 1;
 
 /** Theoretical RTP of the paytable above (35/36 = 97.22%). */
-export function fruitBonanzaRtp(): number {
+export function fruitBonanzaRtp(pays: FruitPayTable = fruitPays()): number {
   const n = FRUIT_SYMBOLS.length;
   const combinations = n ** 3;
   const threeChance = n / combinations;
   const twoChance = (3 * n * (n - 1)) / combinations;
-  const lineEv = threeChance * FRUIT_PAYS.three + twoChance * FRUIT_PAYS.two;
+  const lineEv = threeChance * pays.three + twoChance * pays.two;
 
   return FRUIT_LINE_COUNT * lineEv;
 }
@@ -133,7 +141,7 @@ export function fruitBonanzaConfig(): {
   lines: readonly (readonly [number, number, number])[];
   cells: number;
   lineCount: number;
-  pays: typeof FRUIT_PAYS;
+  pays: FruitPayTable;
   rtp: number;
   houseEdge: number;
   probabilities: { three: number; two: number; none: number };
@@ -149,7 +157,7 @@ export function fruitBonanzaConfig(): {
     lines: FRUIT_LINES,
     cells: FRUIT_CELLS,
     lineCount: FRUIT_LINE_COUNT,
-    pays: FRUIT_PAYS,
+    pays: fruitPays(),
     rtp,
     houseEdge: 1 - rtp,
     probabilities: { three, two, none: 1 - three - two },
@@ -158,6 +166,8 @@ export function fruitBonanzaConfig(): {
 
 /** Score all five lines of a settled grid. */
 export function evaluateFruitGrid(grid: readonly FruitSymbol[]): FruitLineResult[] {
+  const pays = fruitPays();
+
   return FRUIT_LINES.map((cells, line) => {
     const symbols = [grid[cells[0]], grid[cells[1]], grid[cells[2]]] as FruitSymbol[];
     const [first, second, third] = symbols;
@@ -174,7 +184,7 @@ export function evaluateFruitGrid(grid: readonly FruitSymbol[]): FruitLineResult
       cells,
       symbols,
       match,
-      multiplier: match === 'three' ? FRUIT_PAYS.three : match === 'two' ? FRUIT_PAYS.two : 0,
+      multiplier: match === 'three' ? pays.three : match === 'two' ? pays.two : 0,
     };
   });
 }

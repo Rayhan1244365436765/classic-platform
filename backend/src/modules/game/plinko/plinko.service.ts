@@ -10,6 +10,7 @@ import {
 } from '../../../common/provably-fair/index.js';
 import { AppError } from '../../../common/utils/AppError.js';
 import { withTransaction } from '../../../config/db.js';
+import { getGameConfig } from '../../config/config.store.js';
 import { createTransaction, getBalance, lockUser } from '../../wallet/wallet.service.js';
 
 /**
@@ -39,6 +40,12 @@ export const PLINKO_MULTIPLIERS: readonly number[] = [
   5.49, 2.05, 1.08, 0.98, 0.49, 0.98, 1.08, 2.05, 5.49,
 ];
 
+/** Slot payouts: admin-configurable (`plinko` row, one entry per slot), else the built-in table. */
+function plinkoMultipliers(): readonly number[] {
+  const configured = getGameConfig<{ multipliers: number[] }>('plinko')?.multipliers;
+  return configured && configured.length === PLINKO_SLOTS ? configured : PLINKO_MULTIPLIERS;
+}
+
 /** Binomial route count for slot `index` (C(rows, index)). */
 function routesTo(index: number): number {
   let value = 1;
@@ -49,8 +56,8 @@ function routesTo(index: number): number {
 }
 
 /** Theoretical return-to-player of the table (server-side only). */
-export function plinkoRtp(): number {
-  const weighted = PLINKO_MULTIPLIERS.reduce(
+export function plinkoRtp(multipliers: readonly number[] = plinkoMultipliers()): number {
+  const weighted = multipliers.reduce(
     (sum, multiplier, index) => sum + multiplier * routesTo(index),
     0,
   );
@@ -68,7 +75,7 @@ export function plinkoConfig(): {
   return {
     rows: PLINKO_ROWS,
     slots: PLINKO_SLOTS,
-    multipliers: PLINKO_MULTIPLIERS,
+    multipliers: plinkoMultipliers(),
     rtp: plinkoRtp(),
   };
 }
@@ -112,7 +119,7 @@ export async function playPlinko(
     ((roll >> (rows - 1 - step)) & 1) === 1 ? 'R' : 'L',
   );
   const slot = path.reduce((count, step) => (step === 'R' ? count + 1 : count), 0);
-  const multiplier = PLINKO_MULTIPLIERS[slot]!;
+  const multiplier = plinkoMultipliers()[slot]!;
   const payout = roundMoney(stake * multiplier);
   const roundId = crypto.randomUUID();
 

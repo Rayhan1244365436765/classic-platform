@@ -10,7 +10,9 @@ import {
   getTransactions,
   getUsers,
   listGames,
+  previewConfig,
   rejectPayment,
+  resetConfig,
   updateGameConfig,
 } from './admin.controller.js';
 
@@ -28,7 +30,14 @@ adminRouter.get('/payments', getPayments);
 adminRouter.post('/payments/:id/approve', approvePayment);
 adminRouter.post('/payments/:id/reject', rejectPayment);
 
-// Game configuration (RTP control).
+// Game configuration (RTP control) — every game.
+adminRouter.get('/game-configs', listGames);
+adminRouter.get('/game-configs/:id', getGameConfig);
+adminRouter.post('/game-configs/:id', updateGameConfig);
+adminRouter.post('/game-configs/:id/preview', previewConfig);
+adminRouter.post('/game-configs/:id/reset', resetConfig);
+
+// Legacy aliases (the first admin panel used these for Slots/Roulette).
 adminRouter.get('/games', listGames);
 adminRouter.get('/games/:id/config', getGameConfig);
 adminRouter.put('/games/:id/config', updateGameConfig);

@@ -10,6 +10,7 @@ import {
 } from '../../../common/provably-fair/index.js';
 import { AppError } from '../../../common/utils/AppError.js';
 import { withTransaction } from '../../../config/db.js';
+import { getGameConfig } from '../../config/config.store.js';
 import { createTransaction, getBalance, lockUser } from '../../wallet/wallet.service.js';
 
 /**
@@ -58,8 +59,15 @@ export const NATURAL_TOTAL = 8;
 /** Player draws on any total up to and including this. */
 export const PLAYER_DRAWS_AT = 5;
 
-/** Total return per unit staked. */
+/** Total return per unit staked (built-in defaults). */
 export const BACCARAT_PAYOUTS = { player: 2, banker: 1.95, tie: 8 } as const;
+
+export type BaccaratPayouts = { player: number; banker: number; tie: number };
+
+/** Payouts: admin-configurable (`baccarat` row), falling back to the defaults. */
+export function baccaratPayouts(): BaccaratPayouts {
+  return getGameConfig<BaccaratPayouts>('baccarat') ?? BACCARAT_PAYOUTS;
+}
 
 /** Commission taken out of a Banker win (2× − 5% of the 1× profit = 1.95×). */
 export const BANKER_COMMISSION = 0.05;
@@ -245,13 +253,15 @@ export function baccaratProbabilities(): BaccaratProbabilities {
 }
 
 /** Theoretical RTP of each bet (a tie returns Player/Banker stakes). */
-export function baccaratRtp(): Record<BaccaratBet, number> {
+export function baccaratRtp(
+  payouts: BaccaratPayouts = baccaratPayouts(),
+): Record<BaccaratBet, number> {
   const odds = baccaratProbabilities();
 
   return {
-    player: odds.tie + BACCARAT_PAYOUTS.player * odds.player,
-    banker: odds.tie + BACCARAT_PAYOUTS.banker * odds.banker,
-    tie: BACCARAT_PAYOUTS.tie * odds.tie,
+    player: odds.tie + payouts.player * odds.player,
+    banker: odds.tie + payouts.banker * odds.banker,
+    tie: payouts.tie * odds.tie,
   };
 }
 
@@ -260,7 +270,7 @@ export function baccaratConfig(): {
   deckSize: number;
   naturalTotal: number;
   playerDrawsAt: number;
-  payouts: typeof BACCARAT_PAYOUTS;
+  payouts: BaccaratPayouts;
   bankerCommission: number;
   pushOnTie: boolean;
   probabilities: BaccaratProbabilities;
@@ -270,7 +280,7 @@ export function baccaratConfig(): {
     deckSize: DECK_SIZE,
     naturalTotal: NATURAL_TOTAL,
     playerDrawsAt: PLAYER_DRAWS_AT,
-    payouts: BACCARAT_PAYOUTS,
+    payouts: baccaratPayouts(),
     bankerCommission: BANKER_COMMISSION,
     pushOnTie: true,
     probabilities: baccaratProbabilities(),
@@ -284,7 +294,7 @@ function settleBet(
   betOn: BaccaratBet,
 ): { outcome: BaccaratOutcome; multiplier: number } {
   if (winner === betOn) {
-    return { outcome: 'won', multiplier: BACCARAT_PAYOUTS[betOn] };
+    return { outcome: 'won', multiplier: baccaratPayouts()[betOn] };
   }
 
   // Standard Punto Banco: a tie returns Player and Banker stakes.

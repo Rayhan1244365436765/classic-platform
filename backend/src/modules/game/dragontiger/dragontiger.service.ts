@@ -10,6 +10,7 @@ import {
 } from '../../../common/provably-fair/index.js';
 import { AppError } from '../../../common/utils/AppError.js';
 import { withTransaction } from '../../../config/db.js';
+import { getGameConfig } from '../../config/config.store.js';
 import { createTransaction, getBalance, lockUser } from '../../wallet/wallet.service.js';
 
 /**
@@ -54,8 +55,15 @@ export const SHOE_SIZE = CARDS_PER_DECK * DRAGON_TIGER_DECKS;
 /** Distinct ranks, i.e. the number of ways to tie. */
 const RANK_COUNT = RANKS.length;
 
-/** Total return per unit staked. */
+/** Total return per unit staked (built-in defaults). */
 export const DRAGON_TIGER_PAYOUTS = { dragon: 2, tiger: 2, tie: 8 } as const;
+
+export type DragonTigerPayouts = { dragon: number; tiger: number; tie: number };
+
+/** Payouts: admin-configurable (`dragontiger` row), falling back to the defaults. */
+export function dragonTigerPayouts(): DragonTigerPayouts {
+  return getGameConfig<DragonTigerPayouts>('dragontiger') ?? DRAGON_TIGER_PAYOUTS;
+}
 
 export type DragonTigerBet = 'dragon' | 'tiger' | 'tie';
 export type DragonTigerWinner = DragonTigerBet;
@@ -131,13 +139,14 @@ export function dragonTigerProbabilities(decks = DRAGON_TIGER_DECKS): DragonTige
 /** Theoretical RTP of each bet for a shoe size (a tie loses the side bets). */
 export function dragonTigerRtp(
   decks = DRAGON_TIGER_DECKS,
+  payouts: DragonTigerPayouts = dragonTigerPayouts(),
 ): Record<DragonTigerBet, number> {
   const odds = dragonTigerProbabilities(decks);
 
   return {
-    dragon: DRAGON_TIGER_PAYOUTS.dragon * odds.dragon,
-    tiger: DRAGON_TIGER_PAYOUTS.tiger * odds.tiger,
-    tie: DRAGON_TIGER_PAYOUTS.tie * odds.tie,
+    dragon: payouts.dragon * odds.dragon,
+    tiger: payouts.tiger * odds.tiger,
+    tie: payouts.tie * odds.tie,
   };
 }
 
@@ -145,7 +154,7 @@ export function dragonTigerRtp(
 export function dragonTigerConfig(): {
   decks: number;
   shoeSize: number;
-  payouts: typeof DRAGON_TIGER_PAYOUTS;
+  payouts: DragonTigerPayouts;
   tieLosesSides: boolean;
   probabilities: DragonTigerProbabilities;
   rtp: Record<DragonTigerBet, number>;
@@ -155,7 +164,7 @@ export function dragonTigerConfig(): {
   return {
     decks: DRAGON_TIGER_DECKS,
     shoeSize: SHOE_SIZE,
-    payouts: DRAGON_TIGER_PAYOUTS,
+    payouts: dragonTigerPayouts(),
     tieLosesSides: true,
     probabilities: dragonTigerProbabilities(),
     rtp: dragonTigerRtp(),
@@ -211,7 +220,7 @@ export async function playDragonTiger(
 
   // A tie is a loss for Dragon and Tiger — only the Tie bet collects.
   const won = winner === side;
-  const multiplier = won ? DRAGON_TIGER_PAYOUTS[side] : 0;
+  const multiplier = won ? dragonTigerPayouts()[side] : 0;
   const payout = roundMoney(stake * multiplier);
   const roundId = crypto.randomUUID();
 

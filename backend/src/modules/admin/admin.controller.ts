@@ -13,6 +13,8 @@ import {
 import {
   getGameConfigSummary,
   listGameConfigs,
+  previewGameConfig,
+  resetGameConfig,
   setGameConfig,
 } from '../config/config.service.js';
 
@@ -125,31 +127,26 @@ export async function listGames(
   next: NextFunction,
 ): Promise<void> {
   try {
-    res.status(200).json({ games: listGameConfigs() });
+    res.status(200).json({ games: await listGameConfigs() });
   } catch (error) {
     next(error);
   }
 }
 
-/** GET /api/admin/games/:id/config */
+/** GET /api/admin/game-configs/:id */
 export async function getGameConfig(
   req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> {
   try {
-    const game = getGameConfigSummary(readGameId(req));
-    if (!game) {
-      throw new AppError('GAME_CONFIG_NOT_FOUND', 404, 'No configuration for this game');
-    }
-
-    res.status(200).json({ game });
+    res.status(200).json({ game: await getGameConfigSummary(readGameId(req)) });
   } catch (error) {
     next(error);
   }
 }
 
-/** PUT /api/admin/games/:id/config */
+/** POST /api/admin/game-configs/:id  body: { config } — validate, save, apply. */
 export async function updateGameConfig(
   req: Request,
   res: Response,
@@ -157,17 +154,39 @@ export async function updateGameConfig(
 ): Promise<void> {
   try {
     const adminId = requireUserId(req);
-    const id = readGameId(req);
     const rawConfig = (req.body as { config?: unknown } | undefined)?.config;
 
-    await setGameConfig(id, rawConfig, adminId);
+    res.status(200).json({ game: await setGameConfig(readGameId(req), rawConfig, adminId) });
+  } catch (error) {
+    next(error);
+  }
+}
 
-    const game = getGameConfigSummary(id);
-    if (!game) {
-      throw new AppError('GAME_CONFIG_NOT_FOUND', 404, 'No configuration for this game');
-    }
+/** POST /api/admin/game-configs/:id/preview  body: { config } — RTP without saving. */
+export async function previewConfig(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const rawConfig = (req.body as { config?: unknown } | undefined)?.config;
 
-    res.status(200).json({ game });
+    res.status(200).json({ preview: previewGameConfig(readGameId(req), rawConfig) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** POST /api/admin/game-configs/:id/reset — back to the built-in table. */
+export async function resetConfig(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const adminId = requireUserId(req);
+
+    res.status(200).json({ game: await resetGameConfig(readGameId(req), adminId) });
   } catch (error) {
     next(error);
   }

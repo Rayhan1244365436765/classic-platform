@@ -10,6 +10,7 @@ import {
 } from '../../../common/provably-fair/index.js';
 import { AppError } from '../../../common/utils/AppError.js';
 import { withTransaction } from '../../../config/db.js';
+import { getGameConfig } from '../../config/config.store.js';
 import { createTransaction, getBalance, lockUser } from '../../wallet/wallet.service.js';
 
 /**
@@ -61,6 +62,16 @@ export const WIN_MULTIPLIER = 2;
 export const TEEN_PATTI_RAKE = 0.05;
 /** What a win actually pays. */
 export const PAYOUT_MULTIPLIER = WIN_MULTIPLIER - TEEN_PATTI_RAKE;
+
+/** Rake on the win: admin-configurable (`teenpatti` row), falling back to 5%. */
+export function teenPattiRake(): number {
+  return getGameConfig<{ rake: number }>('teenpatti')?.rake ?? TEEN_PATTI_RAKE;
+}
+
+/** What a win returns per unit staked (2× less the rake). */
+export function teenPattiPayout(): number {
+  return WIN_MULTIPLIER - teenPattiRake();
+}
 
 /** Hand categories, highest value wins. */
 export const TEEN_PATTI_CATEGORIES = {
@@ -252,6 +263,8 @@ export type TeenPattiOdds = {
 };
 
 let cachedOdds: TeenPattiOdds | null = null;
+/** Unrounded win/tie rates behind `cachedOdds`, so a rake change keeps full precision. */
+let cachedRates: { winRate: number; tieRate: number } | null = null;
 
 /**
  * Exact head-to-head odds, recomputed from the deck rather than hard-coded.
@@ -261,6 +274,24 @@ let cachedOdds: TeenPattiOdds | null = null;
  * match is symmetric, so P(player) = P(dealer) = (1 − tieRate)/2.
  */
 export function teenPattiOdds(): TeenPattiOdds {
+  // The hand enumeration is expensive and rake-independent: cache it once and
+  // re-derive only the rake-dependent figures (cheap) on every call.
+  const base = enumerateTeenPattiOdds();
+  const { winRate, tieRate } = cachedRates!;
+  const rakedRtp = teenPattiPayout() * winRate + tieRate;
+
+  return { ...base, rtp: round4(rakedRtp), houseEdge: round4(1 - rakedRtp) };
+}
+
+/** RTP for any rake — used by the admin panel to preview a change before saving. */
+export function teenPattiRtpForRake(rake: number): number {
+  enumerateTeenPattiOdds();
+  const { winRate, tieRate } = cachedRates!;
+
+  return (WIN_MULTIPLIER - rake) * winRate + tieRate;
+}
+
+function enumerateTeenPattiOdds(): TeenPattiOdds {
   if (cachedOdds) return cachedOdds;
 
   const deck: TeenPattiCard[] = RANKS.flatMap((rank) => SUITS.map((suit) => `${rank}${suit}`));
@@ -323,6 +354,7 @@ export function teenPattiOdds(): TeenPattiOdds {
   // Both computed from the unrounded rates — 2·P(win) + P(tie) is exactly 1.
   const rakedRtp = PAYOUT_MULTIPLIER * winRate + tieRate;
 
+  cachedRates = { winRate, tieRate };
   cachedOdds = {
     tieRate: round4(tieRate),
     winRate: round4(winRate),
@@ -363,8 +395,8 @@ export function teenPattiConfig(): {
     deckSize: DECK_SIZE,
     handSize: HAND_SIZE,
     winMultiplier: WIN_MULTIPLIER,
-    rake: TEEN_PATTI_RAKE,
-    payoutMultiplier: PAYOUT_MULTIPLIER,
+    rake: teenPattiRake(),
+    payoutMultiplier: teenPattiPayout(),
     tieRefunds: true,
     ranking: TEEN_PATTI_RANKING.map((id) => ({ id, label: CATEGORY_LABELS[id] })),
     odds,
@@ -402,7 +434,7 @@ export async function playTeenPatti(
   const winner: TeenPattiWinner = comparison > 0 ? 'player' : comparison < 0 ? 'dealer' : 'tie';
 
   // A win pays 1.95× (2× less the rake), a tie refunds the stake, a loss pays 0.
-  const multiplier = winner === 'player' ? PAYOUT_MULTIPLIER : winner === 'tie' ? 1 : 0;
+  const multiplier = winner === 'player' ? teenPattiPayout() : winner === 'tie' ? 1 : 0;
   const outcome: TeenPattiOutcome = winner === 'player' ? 'won' : winner === 'tie' ? 'push' : 'lost';
   const payout = roundMoney(stake * multiplier);
   const roundId = crypto.randomUUID();

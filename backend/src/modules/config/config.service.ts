@@ -1,128 +1,219 @@
-import { z } from 'zod';
+import { ZodError } from 'zod';
 
 import { AppError } from '../../common/utils/AppError.js';
-import { query } from '../../config/db.js';
+import { query, withTransaction } from '../../config/db.js';
+import { CARD_GAMES } from './games.cards.js';
+import { CLUSTER_GAMES } from './games.cluster.js';
+import { CORE_GAMES } from './games.core.js';
+import {
+  cacheGameConfig,
+  evictGameConfig,
+  getGameConfig,
+  loadRawGameConfigs,
+} from './config.store.js';
+import type { Evaluation, FieldSpec, GameEntry, RtpLine } from './config.types.js';
 
 /**
- * Admin-tunable game configuration (RTP control).
+ * Admin-tunable game configuration (RTP control) for every game.
  *
- * One `game_configs` row per game holds the game-specific knob; a small
- * in-memory cache keeps reads off the hot path (no DB hit per spin). Each game
- * service reads through `getGameConfig()` and falls back to its hard-coded
- * constant, so a missing row or a failed load never breaks a spin.
+ * `game_configs` holds one JSONB row per game; `config.store.ts` caches it in
+ * memory and each game service reads from the cache, falling back to its built-in
+ * constants. This module sits on top: it knows every game's schema, defaults and
+ * RTP maths, validates a change, previews its RTP, saves it and writes an audit row.
  *
- * RTP is *derived* from the knob (never stored): for slots it is
- * `lineMultiplier / 12`, for the spin wheel it is `Σ(segments) / 20`. This
- * mirrors `slotsRtp()` / `wheelRtp()` and is kept here to avoid an import cycle.
+ * Re-exported so existing imports of `getGameConfig` from here keep working.
  */
+export { getGameConfig } from './config.store.js';
 
-/** Slots: per-line payout (RTP = 3 lines × (6 / 216) × lineMultiplier = lineMultiplier / 12). */
-export const SLOTS_GAME_CONFIG = z.object({
-  lineMultiplier: z.number().positive(),
-});
+const REGISTRY: GameEntry[] = [...CORE_GAMES, ...CARD_GAMES, ...CLUSTER_GAMES];
 
-/** Spin-to-Win roulette: exactly 20 non-negative segment multipliers (RTP = Σ / 20). */
-export const ROULETTE_GAME_CONFIG = z.object({
-  segments: z.array(z.number().nonnegative()).length(20),
-});
+/** Games the admin can edit, in display order. */
+export const KNOWN_GAMES: string[] = REGISTRY.map((game) => game.id);
 
-const KNOWN_GAMES = ['slots', 'roulette'] as const;
-
-const cache = new Map<string, unknown>();
-
-function schemaFor(slug: string): z.ZodTypeAny | undefined {
-  if (slug === 'slots') return SLOTS_GAME_CONFIG;
-  if (slug === 'roulette') return ROULETTE_GAME_CONFIG;
-  return undefined;
-}
-
+/** Admin shape of one game: current config, derived RTP, and how to edit it. */
 export type GameConfigSummary = {
   id: string;
+  label: string;
+  description: string;
+  /** Current values (the saved row, or the built-in defaults). */
   config: unknown;
-  rtp: number;
-  houseEdge: number;
+  /** True when no row is saved and the built-in defaults are in effect. */
+  isDefault: boolean;
+  defaults: unknown;
+  fields: FieldSpec[];
+  lines: RtpLine[];
+  /** Highest RTP of the game's bets, or null when it cannot be computed. */
+  rtp: number | null;
+  houseEdge: number | null;
+  note: string | null;
+  updatedAt: string | null;
 };
 
-/** RTP derived from a validated config object. */
-export function derivedRtp(slug: string, config: unknown): number {
-  if (slug === 'slots') {
-    const parsed = SLOTS_GAME_CONFIG.parse(config);
-    return parsed.lineMultiplier / 12;
+function entryFor(slug: string): GameEntry {
+  const entry = REGISTRY.find((game) => game.id === slug);
+  if (!entry) {
+    throw new AppError('UNKNOWN_GAME', 404, `Unknown game: ${slug}`);
   }
-
-  if (slug === 'roulette') {
-    const parsed = ROULETTE_GAME_CONFIG.parse(config);
-    const total = parsed.segments.reduce((sum, value) => sum + value, 0);
-    return total / parsed.segments.length;
-  }
-
-  throw new AppError('UNKNOWN_GAME', 404, `Unknown game: ${slug}`);
+  return entry;
 }
 
-/** Loads every `game_configs` row into the in-memory cache. Call once at startup. */
+/** Turns a ZodError into one readable 400. */
+function parseOrThrow(entry: GameEntry, raw: unknown): Evaluation {
+  try {
+    return entry.evaluate(raw);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      const message = error.issues
+        .map((issue) => `${issue.path.length > 0 ? `${issue.path.join('.')}: ` : ''}${issue.message}`)
+        .join('; ');
+      throw new AppError('INVALID_GAME_CONFIG', 400, message);
+    }
+    throw error;
+  }
+}
+
+/** RTP must be > 0 and ≤ 100%. Games with no computable RTP are exempt. */
+function assertSaneRtp(evaluation: Evaluation): void {
+  for (const line of evaluation.lines) {
+    if (!Number.isFinite(line.rtp) || line.rtp <= 0 || line.rtp > 1) {
+      throw new AppError(
+        'INVALID_GAME_CONFIG',
+        400,
+        `This config would give ${line.label} an RTP of ${(line.rtp * 100).toFixed(2)}% — every RTP must be above 0% and at most 100%`,
+      );
+    }
+  }
+}
+
+/** Loads every `game_configs` row into the cache. Call once at startup. */
 export async function loadGameConfigs(): Promise<void> {
-  const result = await query<{ id: string; config: unknown }>(
-    'SELECT id, config FROM game_configs',
-  );
+  await loadRawGameConfigs();
 
-  cache.clear();
-  for (const row of result.rows) {
-    cache.set(row.id, row.config);
+  // A row that no longer validates (a schema change, a manual edit) must never
+  // reach a game: drop it so the game falls back to its built-in values.
+  for (const entry of REGISTRY) {
+    const raw = getGameConfig<unknown>(entry.id);
+    if (raw === undefined) continue;
+
+    try {
+      entry.evaluate(raw);
+    } catch {
+      console.error(`[config] ignoring invalid saved config for "${entry.id}" — using defaults`);
+      evictGameConfig(entry.id);
+    }
   }
 }
 
-/** Synchronous cache read. Returns undefined when no row has been loaded. */
-export function getGameConfig<T>(slug: string): T | undefined {
-  return cache.get(slug) as T | undefined;
+function summarise(entry: GameEntry, updatedAt: string | null): GameConfigSummary {
+  const saved = getGameConfig<unknown>(entry.id);
+  const evaluation = entry.evaluate(saved ?? entry.defaults());
+
+  return {
+    id: entry.id,
+    label: entry.label,
+    description: entry.description,
+    config: evaluation.config,
+    isDefault: saved === undefined,
+    defaults: entry.defaults(),
+    fields: entry.fields,
+    lines: evaluation.lines,
+    rtp: evaluation.rtp,
+    houseEdge: evaluation.rtp === null ? null : 1 - evaluation.rtp,
+    note: evaluation.note,
+    updatedAt,
+  };
 }
 
-/** Validates + persists a config, then refreshes the in-memory cache. */
+async function loadUpdatedAt(): Promise<Map<string, string>> {
+  const result = await query<{ id: string; updated_at: Date }>(
+    'SELECT id, updated_at FROM game_configs',
+  );
+  return new Map(result.rows.map((row) => [row.id, new Date(row.updated_at).toISOString()]));
+}
+
+/** Every game's config + derived RTP/edge. */
+export async function listGameConfigs(): Promise<GameConfigSummary[]> {
+  const updated = await loadUpdatedAt();
+  return REGISTRY.map((entry) => summarise(entry, updated.get(entry.id) ?? null));
+}
+
+/** One game's config + derived RTP/edge. */
+export async function getGameConfigSummary(slug: string): Promise<GameConfigSummary> {
+  const entry = entryFor(slug);
+  const updated = await loadUpdatedAt();
+  return summarise(entry, updated.get(slug) ?? null);
+}
+
+/** Validates a config and returns its RTP **without saving** (the admin "Calculate RTP"). */
+export function previewGameConfig(
+  slug: string,
+  rawConfig: unknown,
+): Pick<GameConfigSummary, 'id' | 'config' | 'lines' | 'rtp' | 'houseEdge' | 'note'> {
+  const entry = entryFor(slug);
+  const evaluation = parseOrThrow(entry, rawConfig);
+
+  return {
+    id: slug,
+    config: evaluation.config,
+    lines: evaluation.lines,
+    rtp: evaluation.rtp,
+    houseEdge: evaluation.rtp === null ? null : 1 - evaluation.rtp,
+    note: evaluation.note,
+  };
+}
+
+/** Validates, saves (with an audit row) and applies a config immediately. */
 export async function setGameConfig(
   slug: string,
   rawConfig: unknown,
   adminId: string,
-): Promise<void> {
-  const schema = schemaFor(slug);
-  if (!schema) {
-    throw new AppError('UNKNOWN_GAME', 404, `Unknown game: ${slug}`);
-  }
+): Promise<GameConfigSummary> {
+  const entry = entryFor(slug);
+  const evaluation = parseOrThrow(entry, rawConfig);
+  assertSaneRtp(evaluation);
 
-  const config = schema.parse(rawConfig);
+  const previous = getGameConfig<unknown>(slug) ?? null;
+  const json = JSON.stringify(evaluation.config);
 
-  const rtp = derivedRtp(slug, config);
-  if (!Number.isFinite(rtp) || rtp <= 0 || rtp > 1) {
-    throw new AppError(
-      'INVALID_GAME_CONFIG',
-      400,
-      `This config would yield ${(rtp * 100).toFixed(1)}% RTP — RTP must be greater than 0% and at most 100%`,
+  await withTransaction(async (client) => {
+    await client.query(
+      `INSERT INTO game_configs (id, config, updated_by, updated_at)
+       VALUES ($1, $2::jsonb, $3, now())
+       ON CONFLICT (id)
+       DO UPDATE SET config = EXCLUDED.config, updated_by = EXCLUDED.updated_by, updated_at = now()`,
+      [slug, json, adminId],
     );
+    await client.query(
+      `INSERT INTO game_config_audit (game_id, previous_config, new_config, rtp, changed_by)
+       VALUES ($1, $2::jsonb, $3::jsonb, $4, $5)`,
+      [slug, previous === null ? null : JSON.stringify(previous), json, evaluation.rtp, adminId],
+    );
+  });
+
+  cacheGameConfig(slug, evaluation.config);
+
+  return getGameConfigSummary(slug);
+}
+
+/** Drops the saved row so the game goes back to its built-in table (audited). */
+export async function resetGameConfig(slug: string, adminId: string): Promise<GameConfigSummary> {
+  const entry = entryFor(slug);
+  const previous = getGameConfig<unknown>(slug);
+
+  if (previous !== undefined) {
+    const defaults = entry.defaults();
+
+    await withTransaction(async (client) => {
+      await client.query('DELETE FROM game_configs WHERE id = $1', [slug]);
+      await client.query(
+        `INSERT INTO game_config_audit (game_id, previous_config, new_config, rtp, changed_by)
+         VALUES ($1, $2::jsonb, $3::jsonb, $4, $5)`,
+        [slug, JSON.stringify(previous), JSON.stringify(defaults), entry.evaluate(defaults).rtp, adminId],
+      );
+    });
+    evictGameConfig(slug);
   }
 
-  await query(
-    `INSERT INTO game_configs (id, config, updated_by, updated_at)
-     VALUES ($1, $2::jsonb, $3, now())
-     ON CONFLICT (id)
-     DO UPDATE SET config = EXCLUDED.config, updated_by = EXCLUDED.updated_by, updated_at = now()`,
-    [slug, JSON.stringify(config), adminId],
-  );
-
-  cache.set(slug, config);
+  return getGameConfigSummary(slug);
 }
 
-/** Current config + derived RTP for one game, or undefined when not loaded. */
-export function getGameConfigSummary(slug: string): GameConfigSummary | undefined {
-  const config = getGameConfig(slug);
-  if (config === undefined) {
-    return undefined;
-  }
-
-  const rtp = derivedRtp(slug, config);
-  return { id: slug, config, rtp, houseEdge: 1 - rtp };
-}
-
-/** Every known game's config + derived RTP/edge. */
-export function listGameConfigs(): GameConfigSummary[] {
-  return KNOWN_GAMES
-    .map((slug) => getGameConfigSummary(slug))
-    .filter((entry): entry is GameConfigSummary => entry !== undefined);
-}

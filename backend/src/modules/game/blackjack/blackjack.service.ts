@@ -10,6 +10,7 @@ import {
 } from '../../../common/provably-fair/index.js';
 import { AppError } from '../../../common/utils/AppError.js';
 import { query, withTransaction } from '../../../config/db.js';
+import { getGameConfig } from '../../config/config.store.js';
 import { createTransaction, getBalance, lockUser } from '../../wallet/wallet.service.js';
 
 /**
@@ -35,6 +36,11 @@ const SUITS = ['S', 'H', 'D', 'C'] as const;
 
 export const DEALER_STANDS_ON = 17;
 export const WIN_MULTIPLIER = 2;
+
+/** Win payout (stake included): admin-configurable (`blackjack` row), default 2×. */
+function winMultiplier(): number {
+  return getGameConfig<{ winMultiplier: number }>('blackjack')?.winMultiplier ?? WIN_MULTIPLIER;
+}
 
 export type BlackjackStatus = 'active' | 'won' | 'lost' | 'push';
 export type Card = string;
@@ -133,11 +139,11 @@ function settle(
   }
 
   if (dealer > 21) {
-    return { status: 'won', payout: roundMoney(betAmount * WIN_MULTIPLIER) };
+    return { status: 'won', payout: roundMoney(betAmount * winMultiplier()) };
   }
 
   if (player > dealer) {
-    return { status: 'won', payout: roundMoney(betAmount * WIN_MULTIPLIER) };
+    return { status: 'won', payout: roundMoney(betAmount * winMultiplier()) };
   }
 
   if (player < dealer) {
@@ -183,7 +189,7 @@ export async function startGame(userId: string, betAmount: number): Promise<Blac
       payout = stake;
     } else if (playerNatural) {
       status = 'won';
-      payout = roundMoney(stake * WIN_MULTIPLIER);
+      payout = roundMoney(stake * winMultiplier());
     } else {
       status = 'lost';
     }

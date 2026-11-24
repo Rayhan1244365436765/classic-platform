@@ -10,6 +10,7 @@ import {
 } from '../../../common/provably-fair/index.js';
 import { AppError } from '../../../common/utils/AppError.js';
 import { withTransaction } from '../../../config/db.js';
+import { getGameConfig } from '../../config/config.store.js';
 import { createTransaction, getBalance, lockUser } from '../../wallet/wallet.service.js';
 
 /**
@@ -63,7 +64,7 @@ export const KENO_MIN_PICKS = 1;
 export const KENO_MAX_PICKS = 10;
 
 /** Theoretical return-to-player every ladder is built to hit. */
-const KENO_TARGET_RTP = 0.97;
+export const KENO_TARGET_RTP = 0.97;
 
 /** Each additional catch is worth this much more than the one below it. */
 const KENO_WEIGHT_RATIO = 3;
@@ -121,7 +122,7 @@ export function kenoProbability(picks: number, hits: number): number {
  * Builds the prize ladder for `picks` numbers: geometric weights over the catch
  * levels, scaled to the target RTP, floored to 2 decimals.
  */
-function buildPayTable(picks: number): KenoPayTable {
+function buildPayTable(picks: number, targetRtp: number): KenoPayTable {
   const probabilities = Array.from({ length: picks + 1 }, (_, hits) =>
     kenoProbability(picks, hits),
   );
@@ -134,7 +135,7 @@ function buildPayTable(picks: number): KenoPayTable {
       weightedProbability += probabilities[hits]! * weight(hits);
     }
 
-    const scale = KENO_TARGET_RTP / weightedProbability;
+    const scale = targetRtp / weightedProbability;
 
     return Array.from({ length: picks + 1 }, (_, hits) =>
       hits < threshold ? 0 : floor2(scale * weight(hits)),
@@ -161,15 +162,64 @@ function buildPayTable(picks: number): KenoPayTable {
   throw new Error(`unreachable: no keno ladder for ${picks} picks`);
 }
 
-/** Ladders are pure maths — build each one once. */
-const payTables = new Map<number, KenoPayTable>();
+/**
+ * Admin-configurable Keno settings (`keno` row of `game_configs`):
+ *   * `targetRtp`  — rebuilds every generated ladder to this RTP (default 0.97);
+ *   * `payTables`  — optional hand-written ladders, keyed by pick count; each has
+ *                    `picks + 1` entries (index = catches). Listed pick counts use
+ *                    the given ladder, the rest stay generated.
+ */
+export type KenoGameConfig = {
+  targetRtp?: number;
+  payTables?: Record<string, number[]>;
+};
 
-/** Prize ladder for a pick count (memoised). */
+/** Ladder of `picks` numbers from explicit multipliers, with its true RTP. */
+export function kenoTableFromMultipliers(picks: number, multipliers: readonly number[]): KenoPayTable {
+  const rtp = multipliers.reduce(
+    (sum, multiplier, hits) => sum + kenoProbability(picks, hits) * multiplier,
+    0,
+  );
+  const firstPaying = multipliers.findIndex((multiplier) => multiplier > 0);
+
+  return {
+    picks,
+    multipliers: [...multipliers],
+    minHits: firstPaying === -1 ? picks : firstPaying,
+    rtp,
+  };
+}
+
+/** One ladder under a given config (pure — no cache, no database). */
+function kenoTableFor(picks: number, settings: KenoGameConfig | undefined): KenoPayTable {
+  const override = settings?.payTables?.[String(picks)];
+
+  return override && override.length === picks + 1
+    ? kenoTableFromMultipliers(picks, override)
+    : buildPayTable(picks, settings?.targetRtp ?? KENO_TARGET_RTP);
+}
+
+/** Every ladder (1…10 picks) under a given config — used to preview an RTP change. */
+export function kenoTablesFor(settings: KenoGameConfig | undefined): KenoPayTable[] {
+  return Array.from({ length: KENO_MAX_PICKS }, (_, index) => kenoTableFor(index + 1, settings));
+}
+
+/** Ladders are pure maths — build each one once (per config version). */
+const payTables = new Map<number, KenoPayTable>();
+let payTablesFor: KenoGameConfig | undefined;
+
+/** Prize ladder for a pick count (memoised until the admin changes the config). */
 export function kenoPayTable(picks: number): KenoPayTable {
+  const settings = getGameConfig<KenoGameConfig>('keno');
+  if (settings !== payTablesFor) {
+    payTables.clear();
+    payTablesFor = settings;
+  }
+
   const cached = payTables.get(picks);
   if (cached) return cached;
 
-  const table = buildPayTable(picks);
+  const table = kenoTableFor(picks, settings);
   payTables.set(picks, table);
 
   return table;

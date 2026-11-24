@@ -10,6 +10,7 @@ import {
 } from '../../../common/provably-fair/index.js';
 import { AppError } from '../../../common/utils/AppError.js';
 import { query, withTransaction } from '../../../config/db.js';
+import { getGameConfig } from '../../config/config.store.js';
 import { createTransaction, getBalance, lockUser } from '../../wallet/wallet.service.js';
 
 /**
@@ -33,6 +34,11 @@ export const MIN_MINES = 1;
 export const MAX_MINES = 24;
 /** 3% house edge baked into the pay table. */
 export const HOUSE_EDGE = 0.03;
+
+/** House edge baked into the pay table: admin-configurable (`mines` row). */
+function houseEdge(): number {
+  return getGameConfig<{ houseEdge: number }>('mines')?.houseEdge ?? HOUSE_EDGE;
+}
 
 export type MinesStatus = 'active' | 'won' | 'lost';
 
@@ -88,7 +94,7 @@ export function minesMultiplier(minesCount: number, revealed: number): number {
   }
 
   // Floor, so the payout is never rounded up in the player's favour.
-  return Math.floor(fair * (1 - HOUSE_EDGE) * 100) / 100;
+  return Math.floor(fair * (1 - houseEdge()) * 100) / 100;
 }
 
 /** Pay table for the UI: multiplier at each reveal count. */
