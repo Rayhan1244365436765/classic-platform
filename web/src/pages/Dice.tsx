@@ -11,7 +11,11 @@ import { playSound } from '../utils/sound';
  *
  * The server rolls and settles; this page only animates the reveal: the number
  * flickers through 1–100 for ~1 s, then lands on the server's roll and the
- * result card reports the outcome.
+ * result overlay reports a win.
+ *
+ * Layout: a full-screen table with `[ HIGH ] [ big number ] [ LOW ]` on one row
+ * and the 1–100 track underneath. The side buttons live on the table itself, so
+ * the bottom bar stays the standard chips + ROLL.
  */
 
 /** Preview stake used before the player types one. */
@@ -60,7 +64,8 @@ export default function Dice() {
 
   /** Number currently shown on the table (flickers while rolling). */
   const [display, setDisplay] = useState<number>(table.houseNumber);
-  const [call, setCall] = useState<DicePrediction | null>(null);
+  /** The side the ROLL button plays. HIGH by default, as it always was. */
+  const [call, setCall] = useState<DicePrediction>('high');
   const [isRolling, setIsRolling] = useState(false);
   const [result, setResult] = useState<DiceResult | null>(null);
   const [showWin, setShowWin] = useState(false);
@@ -123,6 +128,7 @@ export default function Dice() {
     };
   }, []);
 
+
   async function roll(prediction: DicePrediction) {
     if (isRolling) {
       return;
@@ -172,133 +178,118 @@ export default function Dice() {
     }
   }
 
+  function pick(side: DicePrediction) {
+    setCall(side);
+    playSound('click');
+  }
+
   const stake = Number(amount) || 0;
   const previewStake = stake > 0 ? stake : DEFAULT_BET;
+  const sideName = call === 'high' ? 'HIGH' : 'LOW';
 
   // Marker position across the 1–100 track (roll 1 → 0%, roll 100 → 100%).
   const markerPct = Math.min(100, Math.max(0, ((display - table.min) / table.faces) * 100));
 
+  const caption = isRolling
+    ? `Rolling ${sideName}…`
+    : result
+      ? `You called ${sideName}`
+      : 'Side selected. Press ROLL to play.';
+
+  const outcome = result && !isRolling ? (result.won ? 'win' : 'lose') : null;
+
   const gameProps = {
     balance,
     betAmount: previewStake,
-    setBetAmount: (amount: number) => setAmount(String(amount)),
-    onSpin: () => void roll(call ?? 'high'),
+    setBetAmount: (value: number) => setAmount(String(value)),
+    onSpin: () => void roll(call),
     spinLabel: 'ROLL',
     isSpinning: isRolling,
   };
 
   return (
-    <GameShell
-      {...gameProps}
-      controls={
-        <div className="dice-actions">
+    <GameShell {...gameProps} fill>
+      <section className={`dx${isRolling ? ' dx--rolling' : ''}${outcome ? ` dx--${outcome}` : ''}`}>
+        <p className="dx__caption">{caption}</p>
+
+        <div className="dx__row">
           <button
             type="button"
-            className={`dice-btn dice-btn--high${call === 'high' ? ' dice-btn--selected' : ''}`}
-            onClick={() => {
-              setCall('high');
-              playSound('click');
-            }}
+            className={`dx-side dx-side--high${call === 'high' ? ' dx-side--on' : ''}`}
+            onClick={() => pick('high')}
             disabled={isRolling}
             aria-pressed={call === 'high'}
           >
-            <span className="dice-btn__title">HIGH</span>
-            <span className="dice-btn__sub">&gt;{table.houseNumber}</span>
+            <span className="dx-side__title">HIGH</span>
+            <span className="dx-side__sub">&gt;{table.houseNumber}</span>
           </button>
 
-          <button
-            type="button"
-            className={`dice-btn dice-btn--low${call === 'low' ? ' dice-btn--selected' : ''}`}
-            onClick={() => {
-              setCall('low');
-              playSound('click');
-            }}
-            disabled={isRolling}
-            aria-pressed={call === 'low'}
-          >
-            <span className="dice-btn__title">LOW</span>
-            <span className="dice-btn__sub">&lt;{table.houseNumber}</span>
-          </button>
-        </div>
-      }
-    >
-      <section className="rt__stage">
-        <section className="rt__stage">
-          <div
-            className={`dice-table${isRolling ? ' dice-table--rolling' : ''}${
-              result && !result.won ? ' dice-table--lost' : ''
-            }`}
-          >
-            <div className="dice-table__glow" aria-hidden="true" />
-
-            <p className="dice-table__label">
-              {isRolling
-                ? `Rolling ${call === 'high' ? 'HIGH' : 'LOW'}`
-                : call
-                  ? `You called ${call === 'high' ? 'HIGH' : 'LOW'}`
-                  : 'Call high or low'}
-            </p>
-
+          <div className="dx__dial">
             <div
-              className={`dice-table__value${isRolling ? ' dice-table__value--rolling' : ''}${
-                result && !isRolling
-                  ? result.won
-                    ? ' dice-table__value--win'
-                    : ' dice-table__value--lose'
-                  : ''
-              }`}
+              className="dx__value"
               role="status"
               aria-live="polite"
               aria-label={isRolling ? 'Rolling' : `Roll ${display}`}
             >
               {display}
             </div>
-
-            <div className="dice-track" aria-hidden="true">
-              <span
-                className={`dice-track__zone dice-track__zone--low${
-                  call === 'low' ? ' dice-track__zone--active' : ''
-                }`}
-              />
-              <span className="dice-track__zone dice-track__zone--house" />
-              <span
-                className={`dice-track__zone dice-track__zone--high${
-                  call === 'high' ? ' dice-track__zone--active' : ''
-                }`}
-              />
-              <span className="dice-track__marker" style={{ left: `${markerPct}%` }} />
-            </div>
-
-            <div className="dice-track__legend" aria-hidden="true">
-              <span>{table.low.min}–{table.low.max} low</span>
-              <span>{table.houseNumber}</span>
-              <span>{table.high.min}–{table.high.max} high</span>
-            </div>
           </div>
 
-          {result && (
-            <GameResultOverlay
-              isOpen={showWin}
-              isWin={result.won}
-              amount={result.won ? result.payout : 0}
-              multiplier={result.won ? result.multiplier : 0}
-              detail={
-                result.won
-                  ? `Rolled ${result.roll} · called ${result.prediction.toUpperCase()} · ${result.multiplier}× your bet`
-                  : undefined
-              }
-              onClose={() => setShowWin(false)}
+          <button
+            type="button"
+            className={`dx-side dx-side--low${call === 'low' ? ' dx-side--on' : ''}`}
+            onClick={() => pick('low')}
+            disabled={isRolling}
+            aria-pressed={call === 'low'}
+          >
+            <span className="dx-side__title">LOW</span>
+            <span className="dx-side__sub">&lt;{table.houseNumber}</span>
+          </button>
+        </div>
+
+        <div className="dx__track-wrap">
+          <div className="dx-track" aria-hidden="true">
+            <span
+              className={`dx-track__zone dx-track__zone--low${call === 'low' ? ' dx-track__zone--on' : ''}`}
             />
-          )}
+            <span className="dx-track__zone dx-track__zone--house" />
+            <span
+              className={`dx-track__zone dx-track__zone--high${call === 'high' ? ' dx-track__zone--on' : ''}`}
+            />
+            <span className="dx-track__marker" style={{ left: `${markerPct}%` }} />
+          </div>
 
-          <p className="rt__fair">Provably fair · seed hash published before every roll</p>
-          {error && <p className="error">{error}</p>}
-          {balanceError && <p className="error">{balanceError}</p>}
-        </section>
+          <div className="dx-track__legend" aria-hidden="true">
+            <span>
+              {table.low.min}–{table.low.max}
+            </span>
+            <span>{table.houseNumber}</span>
+            <span>
+              {table.high.min}–{table.high.max}
+            </span>
+          </div>
+        </div>
 
+        <p className="dx__fair">Provably fair · seed hash published before every roll</p>
+        {error && <p className="error">{error}</p>}
+        {balanceError && <p className="error">{balanceError}</p>}
       </section>
+
+      {result && (
+        <GameResultOverlay
+          isOpen={showWin}
+          isWin={result.won}
+          amount={result.won ? result.payout : 0}
+          multiplier={result.won ? result.multiplier : 0}
+          detail={
+            result.won
+              ? `Rolled ${result.roll} · called ${result.prediction.toUpperCase()} · ${result.multiplier}× your bet`
+              : undefined
+          }
+          onClose={() => setShowWin(false)}
+        />
+      )}
     </GameShell>
   );
 }
-
 
