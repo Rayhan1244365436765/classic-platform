@@ -6,7 +6,7 @@ import {
   type ComponentType,
   type FormEvent,
 } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, PaymentResponse } from '../api/types';
@@ -26,6 +26,7 @@ import {
 } from '../components/Icons';
 import { Modal } from '../components/Modal';
 import { LivePlayerBadge } from '../components/LivePlayerBadge';
+import { ProfileButton } from '../components/ProfileButton';
 import { SoundToggle } from '../components/SoundToggle';
 import { FireRouletteWheel } from '../components/FireRouletteWheel';
 import { playSound } from '../utils/sound';
@@ -102,7 +103,7 @@ async function fetchBalance(): Promise<number> {
 
 export default function Lobby() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
 
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);
@@ -192,7 +193,9 @@ export default function Lobby() {
     setToast(`${game.title} — Coming Soon`);
   }
 
-  async function performCashier(kind: 'deposit' | 'withdraw') {
+  /** Withdrawals only — deposits have their own page (/deposit) with bKash/Nagad details. */
+  async function performWithdraw() {
+    const kind = 'withdraw';
     setCashierError(null);
 
     const value = Number(amount);
@@ -206,11 +209,7 @@ export default function Lobby() {
     try {
       await api.post<PaymentResponse>(`/payment/${kind}`, { amount: value });
       setCashierOpen(false);
-      setToast(
-        kind === 'deposit'
-          ? 'Deposit request pending admin approval'
-          : 'Withdrawal request pending admin approval',
-      );
+      setToast('Withdrawal request pending admin approval');
       await refreshBalance();
     } catch (requestError) {
       setCashierError(getApiErrorMessage(requestError, `Could not request a ${kind}.`));
@@ -219,9 +218,9 @@ export default function Lobby() {
     }
   }
 
-  function handleDeposit(event: FormEvent<HTMLFormElement>) {
+  function handleWithdraw(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    void performCashier('deposit');
+    void performWithdraw();
   }
 
   function handleLogout() {
@@ -229,8 +228,7 @@ export default function Lobby() {
     navigate('/login', { replace: true });
   }
 
-  const phone = user?.phone ?? 'Player';
-  const balanceLabel = balance === null ? '···' : `$${balance.toFixed(2)}`;
+  const balanceLabel = balance === null ? '···' : `৳${balance.toFixed(2)}`;
   const heading = HEADINGS[activeNav];
   const showEmptyState = activeNav === 'sports' || activeNav === 'promotions';
   return (
@@ -268,12 +266,7 @@ export default function Lobby() {
 
       <div className="lobby__content">
         <header className="lobby__topbar">
-          <Link to="/profile" className="lobby__identity" style={{ textDecoration: 'none', cursor: 'pointer' }}>
-  <span className="avatar" aria-hidden="true">
-    <UserIcon className="icon" />
-  </span>
-  <span className="lobby__phone">{phone}</span>
-</Link>
+          <ProfileButton />
 
           <div className="lobby__topbar-right">
             <SoundToggle />
@@ -289,7 +282,7 @@ export default function Lobby() {
             <button
               type="button"
               className="button-primary button--compact"
-              onClick={() => setCashierOpen(true)}
+              onClick={() => navigate('/deposit')}
             >
               <ArrowDownIcon className="icon icon--sm" />
               Deposit
@@ -469,10 +462,10 @@ export default function Lobby() {
       )}
 
       {cashierOpen && (
-        <Modal title="Cashier" onClose={() => setCashierOpen(false)}>
-          <form className="cashier-form" onSubmit={handleDeposit}>
+        <Modal title="Withdraw" onClose={() => setCashierOpen(false)}>
+          <form className="cashier-form" onSubmit={handleWithdraw}>
             <label className="field">
-              <span>Amount ($)</span>
+              <span>Amount (৳)</span>
               <input
                 type="number"
                 value={amount}
@@ -486,17 +479,8 @@ export default function Lobby() {
 
             <div className="row">
               <button type="submit" className="button-primary" disabled={busy}>
-                <ArrowDownIcon className="icon icon--sm" />
-                {busy ? 'Sending…' : 'Deposit'}
-              </button>
-              <button
-                type="button"
-                className="button-secondary"
-                disabled={busy}
-                onClick={() => void performCashier('withdraw')}
-              >
                 <ArrowUpIcon className="icon icon--sm" />
-                Withdraw
+                {busy ? 'Sending…' : 'Withdraw'}
               </button>
             </div>
 

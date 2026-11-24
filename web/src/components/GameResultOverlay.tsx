@@ -46,10 +46,10 @@ type GameResultOverlayProps = {
  */
 export const GAME_RESULT_DURATION_MS = 1200;
 
-/** `52` → `$52.00`, `1534.5` → `$1,534.50` (same as the Showdown dialog). */
+/** `52` → `৳52.00`, `1534.5` → `৳1,534.50` (same as the Showdown dialog). */
 function formatMoney(value: number): string {
   const rounded = Math.round(value * 100) / 100;
-  return `$${rounded.toLocaleString('en-US', {
+  return `৳${rounded.toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;

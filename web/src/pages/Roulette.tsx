@@ -63,24 +63,24 @@ function segmentFill(multiplier: number, index: number): string {
   return index % 2 === 0 ? '#1b2130' : '#131822';
 }
 
-/** "$0", "$5", "$100", "$1,250.50" — used where space is plentiful. */
+/** "৳0", "৳5", "৳100", "৳1,250.50" — used where space is plentiful. */
 function money(value: number): string {
   const rounded = Math.round(value * 100) / 100;
   const fractionDigits = rounded % 1 === 0 ? 0 : 2;
 
-  return `$${rounded.toLocaleString('en-US', {
+  return `৳${rounded.toLocaleString('en-US', {
     minimumFractionDigits: fractionDigits,
     maximumFractionDigits: 2,
   })}`;
 }
 
-/** Compact rim label: "$0", "$20", "$120", "$1.2k", "$12k". */
+/** Compact rim label: "৳0", "৳20", "৳120", "৳1.2k", "৳12k". */
 function moneyCompact(value: number): string {
   const rounded = Math.round(value * 100) / 100;
 
   if (rounded >= 1000) {
     const thousands = Math.round((rounded / 1000) * 10) / 10;
-    return `$${thousands % 1 === 0 ? thousands.toFixed(0) : thousands.toFixed(1)}k`;
+    return `৳${thousands % 1 === 0 ? thousands.toFixed(0) : thousands.toFixed(1)}k`;
   }
 
   return money(rounded).replace('.00', '');
@@ -246,7 +246,7 @@ export default function Roulette() {
     }
   }
 
-  const balanceLabel = balance === null ? '···' : `$${balance.toFixed(2)}`;
+  const balanceLabel = balance === null ? '···' : `৳${balance.toFixed(2)}`;
   const stake = Number(amount) || 0;
 
   // Every label on the wheel is a dollar amount for the *current* stake, so the
@@ -329,8 +329,8 @@ export default function Roulette() {
             multiplier={result.multiplier}
             detail={
               result.won
-                ? `$${result.betAmount.toFixed(2)} bet × ${result.multiplier} = $${result.payout.toFixed(2)}`
-                : `$${result.betAmount.toFixed(2)} bet · the wheel stopped on 0×`
+                ? `৳${result.betAmount.toFixed(2)} bet × ${result.multiplier} = ৳${result.payout.toFixed(2)}`
+                : `৳${result.betAmount.toFixed(2)} bet · the wheel stopped on 0×`
             }
             onClose={() => setShowResult(false)}
           />

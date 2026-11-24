@@ -18,7 +18,7 @@ import type {
 } from '../api/types';
 
 function formatMoney(amount: number): string {
-  return `$${amount.toLocaleString(undefined, {
+  return `৳${amount.toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
@@ -208,6 +208,9 @@ export default function Dashboard() {
                     <th>User Phone</th>
                     <th className="num">Amount</th>
                     <th>Type</th>
+                    <th>Method</th>
+                    <th>Sender Number</th>
+                    <th>TrxID</th>
                     <th>Date</th>
                     <th>Actions</th>
                   </tr>
@@ -220,6 +223,9 @@ export default function Dashboard() {
                       <td>
                         <span className={`badge badge--${payment.type}`}>{payment.type}</span>
                       </td>
+                      <td>{payment.type === 'deposit' ? payment.paymentMethod : '—'}</td>
+                      <td className="mono">{payment.senderNumber ?? '—'}</td>
+                      <td className="mono">{payment.trxId ?? '—'}</td>
                       <td className="muted">{formatDate(payment.createdAt)}</td>
                       <td>
                         <div className="row">

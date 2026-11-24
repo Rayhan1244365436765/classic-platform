@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 
 import { AppError } from '../../common/utils/AppError.js';
 import { requireUserId } from '../../common/utils/requireUser.js';
+import { depositSchema } from './payment.schema.js';
 import {
   createDepositRequest,
   createWithdrawRequest,
@@ -13,7 +14,10 @@ import {
  * verified JWT, never from the body.
  */
 
-/** POST /api/payment/deposit  body: { amount } */
+/**
+ * POST /api/payment/deposit
+ * body: { amount, paymentMethod: 'bkash' | 'nagad', senderNumber, trxId }
+ */
 export async function deposit(
   req: Request,
   res: Response,
@@ -21,8 +25,8 @@ export async function deposit(
 ): Promise<void> {
   try {
     const userId = requireUserId(req);
-    const amount = readAmount(req);
-    const payment = await createDepositRequest(userId, amount);
+    const input = depositSchema.parse(req.body);
+    const payment = await createDepositRequest(userId, input);
     res.status(201).json({ payment });
   } catch (error) {
     next(error);

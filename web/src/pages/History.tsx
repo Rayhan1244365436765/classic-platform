@@ -7,7 +7,7 @@ import { ArrowLeftIcon } from '../components/Icons';
 
 function money(value: number): string {
   const rounded = Math.round(value * 100) / 100;
-  return `$${rounded.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `৳${rounded.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function formatDate(iso: string): string {

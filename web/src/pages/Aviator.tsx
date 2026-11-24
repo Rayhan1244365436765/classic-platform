@@ -87,7 +87,7 @@ function money(value: number): string {
   const rounded = Math.round(value * 100) / 100;
   const fractionDigits = rounded % 1 === 0 ? 0 : 2;
 
-  return `$${rounded.toLocaleString('en-US', {
+  return `৳${rounded.toLocaleString('en-US', {
     minimumFractionDigits: fractionDigits,
     maximumFractionDigits: 2,
   })}`;
@@ -1254,7 +1254,7 @@ export default function Aviator() {
           onBetChange={(value) => setAmount(String(value))}
           onPlay={() => (flying ? void handleCashout() : void placeBet())}
           playLabel={flying ? (canCashOut ? 'CASH OUT' : 'WAIT') : 'PLACE BET'}
-          secondaryText={flying ? `$${liveCashout.toFixed(2)}` : undefined}
+          secondaryText={flying ? `৳${liveCashout.toFixed(2)}` : undefined}
           isPlaying={busy}
           disabled={flying && !canCashOut}
           chipsDisabled={busy || flying}

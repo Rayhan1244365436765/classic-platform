@@ -97,7 +97,7 @@ function money(value: number): string {
   const rounded = Math.round(value * 100) / 100;
   const digits = rounded % 1 === 0 ? 0 : 2;
 
-  return `$${rounded.toLocaleString('en-US', {
+  return `৳${rounded.toLocaleString('en-US', {
     minimumFractionDigits: digits,
     maximumFractionDigits: 2,
   })}`;

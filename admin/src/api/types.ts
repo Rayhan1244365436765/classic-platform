@@ -45,6 +45,11 @@ export type PaymentRequest = {
   reviewedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** bKash/Nagad Transaction ID (deposits only). */
+  trxId: string | null;
+  /** Number the player paid from (deposits only). */
+  senderNumber: string | null;
+  paymentMethod: 'bkash' | 'nagad';
   phone?: string;
 };
 

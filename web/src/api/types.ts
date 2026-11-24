@@ -28,6 +28,11 @@ export type PaymentRequest = {
   status: 'pending' | 'approved' | 'rejected';
   createdAt: string;
   updatedAt: string;
+  /** bKash/Nagad Transaction ID (deposits only). */
+  trxId: string | null;
+  /** Number the player paid from (deposits only). */
+  senderNumber: string | null;
+  paymentMethod: 'bkash' | 'nagad';
 };
 
 export type PaymentResponse = {

@@ -5,6 +5,7 @@ import type { PoolClient } from 'pg';
 import { AppError } from '../../common/utils/AppError.js';
 import { query, withTransaction } from '../../config/db.js';
 import { createTransaction, getBalance, lockUser } from '../wallet/wallet.service.js';
+import type { DepositInput, PaymentMethod } from './payment.schema.js';
 
 /**
  * Manual deposit / withdrawal requests (the bridge until a real payment gateway
@@ -34,6 +35,12 @@ export type PaymentRequest = {
   reviewedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** bKash/Nagad Transaction ID (deposits only). */
+  trxId: string | null;
+  /** Number the player paid from (deposits only). */
+  senderNumber: string | null;
+  /** Meaningful for deposits only; withdrawals carry the column default. */
+  paymentMethod: PaymentMethod;
   /** Joined for admin listings. */
   phone?: string;
 };
@@ -48,10 +55,14 @@ export type PaymentRequestRow = {
   reviewed_at: Date | null;
   created_at: Date;
   updated_at: Date;
+  trx_id: string | null;
+  sender_number: string | null;
+  payment_method: PaymentMethod;
   phone?: string;
 };
 
 const FOREIGN_KEY_VIOLATION = '23503';
+const UNIQUE_VIOLATION = '23505';
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Selected by every payment query so the mapping is uniform. */
@@ -65,27 +76,34 @@ export const PAYMENT_COLUMNS = `
   pr.reviewed_at,
   pr.created_at,
   pr.updated_at,
+  pr.trx_id,
+  pr.sender_number,
+  pr.payment_method,
   u.phone
 `;
 
-/** Files a deposit request. No ledger entry is written yet. */
+/**
+ * Files a deposit request with the player's bKash/Nagad payment details so an
+ * operator can verify it. No ledger entry is written until it is approved.
+ */
 export async function createDepositRequest(
   userId: string,
-  amount: number,
+  input: DepositInput,
 ): Promise<PaymentRequest> {
-  const value = assertAmount(amount);
+  const value = assertAmount(input.amount);
 
   try {
     const result = await query<PaymentRequestRow>(
       `WITH inserted AS (
-         INSERT INTO payment_requests (user_id, amount, type)
-              VALUES ($1, $2, 'deposit')
+         INSERT INTO payment_requests
+                (user_id, amount, type, trx_id, sender_number, payment_method)
+              VALUES ($1, $2, 'deposit', $3, $4, $5)
            RETURNING *
        )
        SELECT ${PAYMENT_COLUMNS}
          FROM inserted pr
          JOIN users u ON u.id = pr.user_id`,
-      [userId, moneyString(value)],
+      [userId, moneyString(value), input.trxId, input.senderNumber, input.paymentMethod],
     );
 
     return mapPaymentRequest(requireRow(result.rows[0], 'PAYMENT_NOT_CREATED'));
@@ -93,9 +111,17 @@ export async function createDepositRequest(
     if (isForeignKeyViolation(error)) {
       throw new AppError('USER_NOT_FOUND', 404, 'User does not exist');
     }
+    if (isUniqueViolation(error)) {
+      throw new AppError(
+        'DUPLICATE_TRX_ID',
+        409,
+        'This Transaction ID has already been submitted',
+      );
+    }
     throw error;
   }
 }
+
 /**
  * Files a withdrawal request **and** debits the wallet immediately, atomically.
  * The debit is tagged with the request id (`reference_id`) so a refund can be
@@ -178,6 +204,9 @@ export function mapPaymentRequest(row: PaymentRequestRow): PaymentRequest {
     reviewedAt: row.reviewed_at ? new Date(row.reviewed_at).toISOString() : null,
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
+    trxId: row.trx_id,
+    senderNumber: row.sender_number,
+    paymentMethod: row.payment_method,
     phone: row.phone,
   };
 }
@@ -234,5 +263,12 @@ function isForeignKeyViolation(error: unknown): boolean {
     return false;
   }
   return (error as { code?: unknown }).code === FOREIGN_KEY_VIOLATION;
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) {
+    return false;
+  }
+  return (error as { code?: unknown }).code === UNIQUE_VIOLATION;
 }
 

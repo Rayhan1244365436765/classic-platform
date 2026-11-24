@@ -18,6 +18,16 @@ import Lobby from './pages/Lobby';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ProfilePage from './pages/Profile';
+import Account from './pages/Account';
+import Deposit from './pages/Deposit';
+import AppDownload from './pages/AppDownload';
+import Invite from './pages/Invite';
+import Mail from './pages/Mail';
+import Missions from './pages/Missions';
+import Rebate from './pages/Rebate';
+import Rewards from './pages/Rewards';
+import Security from './pages/Security';
+import Support from './pages/Support';
 import Mines from './pages/Mines';
 import Plinko from './pages/Plinko';
 import Roulette from './pages/Roulette';
@@ -187,6 +197,86 @@ function App() {
           element={
             <ProtectedRoute>
               <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/deposit"
+          element={
+            <ProtectedRoute>
+              <Deposit />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/account"
+          element={
+            <ProtectedRoute>
+              <Account />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/security"
+          element={
+            <ProtectedRoute>
+              <Security />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/support"
+          element={
+            <ProtectedRoute>
+              <Support />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/invite"
+          element={
+            <ProtectedRoute>
+              <Invite />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/missions"
+          element={
+            <ProtectedRoute>
+              <Missions />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/rewards"
+          element={
+            <ProtectedRoute>
+              <Rewards />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mail"
+          element={
+            <ProtectedRoute>
+              <Mail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/rebate"
+          element={
+            <ProtectedRoute>
+              <Rebate />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app-download"
+          element={
+            <ProtectedRoute>
+              <AppDownload />
             </ProtectedRoute>
           }
         />

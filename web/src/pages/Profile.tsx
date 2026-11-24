@@ -30,6 +30,20 @@ const MENU: MenuItem[] = [
   { key: 'service', icon: '🎧', label: 'Customer Service' },
 ];
 
+/** Member Center item key → page. Items not listed here fall back to a toast. */
+const ROUTES: Record<string, string> = {
+  rewards: '/rewards',
+  account: '/account',
+  security: '/security',
+  invite: '/invite',
+  missions: '/missions',
+  rebate: '/rebate',
+  mail: '/mail',
+  support: '/support',
+  app: '/app-download',
+  service: '/support',
+};
+
 export default function Profile() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -92,7 +106,7 @@ export default function Profile() {
   }
 
   const phone = user?.phone ?? 'Player';
-  const balanceLabel = balance === null ? '···' : `$${balance.toFixed(2)}`;
+  const balanceLabel = balance === null ? '···' : `৳${balance.toFixed(2)}`;
 
   return (
     <div className="profile">
@@ -130,7 +144,7 @@ export default function Profile() {
         </div>
 
         <div className="profile__actions">
-          <Link to="/?cashier=1" className="profile__action">
+          <Link to="/deposit" className="profile__action">
             <ArrowDownIcon className="icon icon--sm" />
             Deposit
           </Link>
@@ -158,8 +172,10 @@ export default function Profile() {
               </>
             );
 
-            return item.to ? (
-              <Link key={item.key} to={item.to} className="profile__item">
+            const target = item.to ?? ROUTES[item.key];
+
+            return target ? (
+              <Link key={item.key} to={target} className="profile__item">
                 {content}
               </Link>
             ) : (
