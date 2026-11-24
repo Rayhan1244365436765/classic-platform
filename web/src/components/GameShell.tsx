@@ -9,7 +9,8 @@ import { SoundToggle } from './SoundToggle';
 /**
  * The frame every game page sits in.
  *
- * A fixed top bar (lobby + balance) and a fixed bottom bar holding four
+ * A fixed top bar (lobby on the left, balance centered, live players + sound on
+ * the right) and a fixed bottom bar holding four
  * quick-bet chips around one big burning action button. The board goes in
  * `children` and takes whatever space is left, so nothing has to be scrolled to
  * reach the action.
@@ -35,7 +36,6 @@ export type GameShellProps = {
   controls?: ReactNode;
   /** Blocks the action on top of `isSpinning` (e.g. stake out of range). */
   disabled?: boolean;
-  title?: string;
   /** Shown under the balance, e.g. a balance request failure. */
   balanceError?: string | null;
   /**
@@ -66,7 +66,6 @@ export function GameShell({
   chips = DEFAULT_CHIPS,
   controls,
   disabled = false,
-  title,
   balanceError = null,
   fill = false,
 }: GameShellProps) {
@@ -80,12 +79,6 @@ export function GameShell({
           <span>Lobby</span>
         </Link>
 
-        <h1 className="gs__title">{title ?? 'Play'}</h1>
-
-        <LivePlayerBadge baseCount={3800} />
-
-        <SoundToggle />
-
         <span
           className={`gs__balance${balanceError ? ' gs__balance--error' : ''}`}
           title={balanceError ?? 'Current balance'}
@@ -93,6 +86,11 @@ export function GameShell({
           <WalletIcon className="icon icon--sm" />
           {balance === null ? '—' : money(balance)}
         </span>
+
+        <div className="gs__right">
+          <LivePlayerBadge baseCount={3800} />
+          <SoundToggle />
+        </div>
       </header>
 
       <main className={`gs__main${fill ? ' gs__main--fill' : ''}`}>{children}</main>

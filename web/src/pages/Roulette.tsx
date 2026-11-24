@@ -263,12 +263,6 @@ export default function Roulette() {
           <span>Lobby</span>
         </Link>
 
-        <h1 className="rt__title">Spin to Win</h1>
-
-        <SoundToggle />
-
-        <LivePlayerBadge baseCount={3800} />
-
         <span
           className={`balance-pill${balanceError ? ' balance-pill--error' : ''}`}
           title={balanceError ?? 'Current balance'}
@@ -276,6 +270,11 @@ export default function Roulette() {
           <WalletIcon className="icon icon--sm" />
           {balanceLabel}
         </span>
+
+        <div className="rt__right">
+          <LivePlayerBadge baseCount={3800} />
+          <SoundToggle />
+        </div>
       </header>
 
       <main className="rt__body">

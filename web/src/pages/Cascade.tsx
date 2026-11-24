@@ -295,12 +295,6 @@ export default function Cascade() {
           <span>Lobby</span>
         </Link>
 
-        <h1 className="rt__title">Showdown 🤠</h1>
-
-        <SoundToggle />
-
-        <LivePlayerBadge baseCount={4200} />
-
         <span
           className={`balance-pill${balanceError ? ' balance-pill--error' : ''}`}
           title={balanceError ?? 'Current balance'}
@@ -308,6 +302,11 @@ export default function Cascade() {
           <WalletIcon className="icon icon--sm" />
           {balanceLabel}
         </span>
+
+        <div className="rt__right">
+          <LivePlayerBadge baseCount={4200} />
+          <SoundToggle />
+        </div>
       </header>
 
       <main className="rt__body">

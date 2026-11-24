@@ -1128,12 +1128,6 @@ export default function Aviator() {
           <span>Lobby</span>
         </Link>
 
-        <h1 className="rt__title">Aviator</h1>
-
-        <SoundToggle />
-
-        <LivePlayerBadge baseCount={5100} />
-
         <span
           className={`balance-pill${balanceError ? ' balance-pill--error' : ''}`}
           title={balanceError ?? 'Current balance'}
@@ -1141,6 +1135,11 @@ export default function Aviator() {
           <WalletIcon className="icon icon--sm" />
           {balanceLabel}
         </span>
+
+        <div className="rt__right">
+          <LivePlayerBadge baseCount={5100} />
+          <SoundToggle />
+        </div>
       </header>
 
       <main className="rt__body">

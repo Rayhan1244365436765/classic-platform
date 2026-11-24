@@ -181,7 +181,6 @@ export default function FortuneGems() {
       onSpin={() => void spin()}
       spinLabel="SPIN"
       isSpinning={spinning}
-      title="Fortune Gems"
     >
       <section className="rt__stage fg__stage">
         {error && <p className="error">{error}</p>}

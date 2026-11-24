@@ -3091,17 +3091,6 @@ button:not(:disabled):hover {
 
 /* .rt__back is styled together with .gs__back in the GameShell section. */
 
-.rt__title {
-  flex: 1;
-  margin: 0;
-  text-align: center;
-  font-size: 0.95rem;
-  font-weight: 800;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--text);
-}
-
 .rt__body {
   flex: 1;
   width: 100%;
@@ -3650,12 +3639,6 @@ button:not(:disabled):hover {
     padding: 0.7rem 1rem;
   }
 
-  .rt__title {
-    order: -1;
-    flex-basis: 100%;
-    text-align: left;
-    font-size: 0.8rem;
-  }
 }
 
 @media (max-width: 520px) {
@@ -8604,19 +8587,6 @@ button:not(:disabled):hover {
   font-size: 0.78rem;
 }
 
-.gs__title {
-  flex: 1 1 auto;
-  min-width: 0;
-  margin: 0;
-  overflow: hidden;
-  color: var(--text);
-  font-size: 0.92rem;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* Gold balance pill. */
 .gs__balance {
   display: inline-flex;
@@ -10084,5 +10054,93 @@ button:not(:disabled):hover {
 .dep__link {
   color: var(--accent);
   font-size: 0.85rem;
+}
+
+
+/* ---------- Game top bar: Lobby | balance (centered) | live players + sound ---------- */
+.gs__top,
+.rt__topbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.gs__top .gs__back,
+.rt__topbar .rt__back {
+  justify-self: start;
+}
+
+.gs__right,
+.rt__right {
+  display: flex;
+  align-items: center;
+  justify-self: end;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+/* The frame is phone-sized, so the badge is compact everywhere in a game bar:
+   no "Players Online" caption and no avatar stack — just the red dot + count. */
+.gs__top .live-players,
+.rt__topbar .live-players {
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+.gs__top .live-players__label,
+.gs__top .live-players__avatars,
+.rt__topbar .live-players__label,
+.rt__topbar .live-players__avatars {
+  display: none;
+}
+
+.gs__top .live-players__count,
+.rt__topbar .live-players__count {
+  font-size: 0.85rem;
+}
+
+/* Centered balance: translucent gold pill with a gold outline. */
+.gs__top .gs__balance,
+.rt__topbar .balance-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0.4rem 1rem;
+  border: 1px solid var(--accent);
+  border-radius: 20px;
+  background: rgb(212 175 55 / 10%);
+  box-shadow: 0 0 14px rgb(212 175 55 / 18%);
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.gs__top .gs__balance--error,
+.rt__topbar .balance-pill--error {
+  border-color: var(--danger);
+  background: rgb(239 68 68 / 12%);
+  box-shadow: none;
+  color: var(--danger);
+}
+
+/* Very small phones: drop the live-players badge to make room. */
+@media (max-width: 400px) {
+  .gs__top .live-players,
+  .rt__topbar .live-players {
+    display: none;
+  }
+
+  .gs__top .gs__balance,
+  .rt__topbar .balance-pill {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.85rem;
+  }
 }
 

@@ -336,12 +336,6 @@ export default function Dice3D() {
           <span>Lobby</span>
         </Link>
 
-        <h1 className="rt__title">3D Dice 🎲</h1>
-
-        <SoundToggle />
-
-        <LivePlayerBadge baseCount={3700} />
-
         <span
           className={`balance-pill${balanceError ? ' balance-pill--error' : ''}`}
           title={balanceError ?? 'Current balance'}
@@ -349,6 +343,11 @@ export default function Dice3D() {
           <WalletIcon className="icon icon--sm" />
           {balanceLabel}
         </span>
+
+        <div className="rt__right">
+          <LivePlayerBadge baseCount={3700} />
+          <SoundToggle />
+        </div>
       </header>
 
       <main className="rt__body">
