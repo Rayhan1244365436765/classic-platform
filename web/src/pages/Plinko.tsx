@@ -246,7 +246,7 @@ function ballAt(
 }
 
 export default function Plinko() {
-  useGameMusic('/audio/slots-bgm.mp3', 0.4);
+  useGameMusic('/audio/3d-dice-mp3.mp3', 0.4);
 
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);

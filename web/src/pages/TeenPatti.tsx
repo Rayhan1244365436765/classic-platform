@@ -66,7 +66,7 @@ function CardView({ code, enter }: { code: string; enter: boolean }) {
 function CardBack({ label }: { label: string }) { return <div className="tp-card tp-card--back" aria-label={`${label} card face down`} />; }
 
 export default function TeenPatti() {
-  useGameMusic('/audio/cards-bgm.mp3', 0.4);
+  useGameMusic('/audio/showdown.mp3', 0.4);
 
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);

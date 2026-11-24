@@ -62,7 +62,7 @@ async function fetchConfig(): Promise<FortuneGemsConfig> {
 }
 
 export default function FortuneGems() {
-  useGameMusic('/audio/slots-bgm.mp3', 0.4);
+  useGameMusic('/audio/lucky-slots.mp3', 0.4);
 
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);

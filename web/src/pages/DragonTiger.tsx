@@ -61,7 +61,7 @@ function CardBack({ label }: { label: string }) {
 }
 
 export default function DragonTiger() {
-  useGameMusic('/audio/cards-bgm.mp3', 0.4);
+  useGameMusic('/audio/showdown.mp3', 0.4);
 
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);

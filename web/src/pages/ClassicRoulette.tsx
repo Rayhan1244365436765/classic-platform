@@ -55,7 +55,7 @@ function paintWheel(ctx: CanvasRenderingContext2D, size: number, config: Classic
 const WHEEL_SIZE = 440;
 
 export default function ClassicRoulette() {
-  useGameMusic('/audio/casual-bgm.mp3', 0.4);
+  useGameMusic('/audio/spin-to-win-bgm.mp3', 0.5);
 
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);

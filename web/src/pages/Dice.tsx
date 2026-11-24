@@ -49,7 +49,7 @@ async function fetchConfig(): Promise<DiceConfig> {
 }
 
 export default function Dice() {
-  useGameMusic('/audio/slots-bgm.mp3', 0.4);
+  useGameMusic('/audio/3d-dice-mp3.mp3', 0.4);
 
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);
