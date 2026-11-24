@@ -18,8 +18,12 @@
 export type SoundType = 'click' | 'spin' | 'win' | 'lose' | 'crash' | 'punch';
 
 const STORAGE_KEY = 'casino.sound.muted';
-/** Master volume (0–1). */
-const MASTER_VOLUME = 0.85;
+/**
+ * Master volume of the synthesized effects. Above 1 on purpose: it doubles the
+ * previous 0.85 so effects stand out over the background music. The limiter in
+ * `ensureContext()` catches the peaks this would otherwise clip.
+ */
+const MASTER_VOLUME = 1.7;
 
 type Listener = (muted: boolean) => void;
 
@@ -110,7 +114,20 @@ function ensureContext(): AudioContext | null {
     context = new Ctor();
     master = context.createGain();
     master.gain.value = muted ? 0 : MASTER_VOLUME;
-    master.connect(context.destination);
+
+    // Limiter between the master gain and the speakers: with the master above 1,
+    // overlapping notes (the win arpeggio, a click on top of a spin) could exceed
+    // full scale and crackle. The fast attack clamps those peaks, and the same
+    // compression makes the short effects read louder and punchier.
+    const limiter = context.createDynamicsCompressor();
+    limiter.threshold.value = -4;
+    limiter.knee.value = 3;
+    limiter.ratio.value = 14;
+    limiter.attack.value = 0.002;
+    limiter.release.value = 0.12;
+
+    master.connect(limiter);
+    limiter.connect(context.destination);
   }
 
   if (context.state === 'suspended') {
@@ -213,7 +230,7 @@ function tick(ctx: AudioContext, progress: number): void {
     freq: 940 - progress * 260,
     duration: 0.035,
     type: 'square',
-    peak: 0.16 - progress * 0.08,
+    peak: 0.24 - progress * 0.1,
   });
 }
 
