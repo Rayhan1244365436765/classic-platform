@@ -319,3 +319,104 @@ input:focus-visible {
   color: var(--muted);
   font-size: 0.8rem;
 }
+
+/* Game config: select, textarea, clickable rows, RTP preview */
+.select,
+.textarea {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #0f1218;
+  color: var(--text);
+  font: inherit;
+}
+
+.textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  font-size: 0.8rem;
+  resize: vertical;
+}
+
+.select:focus-visible,
+.textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.field__help {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.notice {
+  margin: 0.75rem 0;
+  color: var(--success);
+  font-size: 0.9rem;
+}
+
+.row-link {
+  cursor: pointer;
+}
+
+.row-link:hover td {
+  background: rgb(212 175 55 / 6%);
+}
+
+.row-link--active td {
+  background: rgb(212 175 55 / 12%);
+}
+
+.rtp {
+  margin: 0.5rem 0 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.rtp__title {
+  margin: 0 0 0.4rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.rtp__headline {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--success);
+}
+
+.rtp__headline .muted {
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+.rtp--warn {
+  color: #e8b64a;
+}
+
+.rtp--bad {
+  color: var(--danger);
+}
+
+.rtp__lines {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.25rem 1.5rem;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+}
+
+.rtp__lines li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
