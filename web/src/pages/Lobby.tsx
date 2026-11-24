@@ -1,5 +1,5 @@
 import {
-  useCallback,import
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -109,7 +109,10 @@ export default function Lobby() {
   const [toast, setToast] = useState<string | null>(null);
 
   const [activeNav, setActiveNav] = useState<NavKey>('home');
-  const [cashierOpen, setCashierOpen] = useState(false);
+  // The Profile page links here with ?cashier=1 to open the deposit/withdraw modal.
+  const [cashierOpen, setCashierOpen] = useState(
+    () => new URLSearchParams(window.location.search).get('cashier') === '1',
+  );
   const [amount, setAmount] = useState('10');
   const [busy, setBusy] = useState(false);
   const [cashierError, setCashierError] = useState<string | null>(null);
@@ -449,16 +452,14 @@ export default function Lobby() {
           <HistoryIcon className="icon" />
           <span>History</span>
         </button>
-        <Link to="/profile">
-          <button
-            type="button"
-            className="bottom-link bottom-link--active"
-            onClick={() => navigate('/profile')}
-          >
-            <UserIcon className="icon" />
-            <span>Profile</span>
-          </button>
-        </Link>
+        <button
+          type="button"
+          className="bottom-link"
+          onClick={() => navigate('/profile')}
+        >
+          <UserIcon className="icon" />
+          <span>Profile</span>
+        </button>
       </nav>
 
       {toast && (
