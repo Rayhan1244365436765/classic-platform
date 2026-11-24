@@ -158,7 +158,7 @@ export default function Dashboard() {
     <div className="app">
       <header className="topbar">
         <div>
-          <h1>Admin Dashboard</h1>
+          <img src="/logo.png" alt="Casino Logo" style={{ maxHeight: '40px' }} />
           <p className="muted">Signed in as {readAdminPhone()}</p>
         </div>
         <div className="row">

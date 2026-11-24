@@ -4,6 +4,7 @@ import {
   useMemo,
   useState,
   type ComponentType,
+  type CSSProperties,
   type FormEvent,
 } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -41,6 +42,11 @@ type Game = {
   category: Category;
   /** CSS gradient for the card artwork (fallback when no image). */
   color: string;
+  /**
+   * Glow colour of a premium tile (themed gradient + large glowing 3D icon).
+   * Used by any game without a photo — see `isPremium`.
+   */
+  glow?: string;
   /** Optional custom artwork image served from /images/games/. */
   image?: string;
   /** Emoji stand-in until real artwork exists. */
@@ -54,28 +60,51 @@ type Game = {
 const GAMES: Game[] = [
   { id: 'roulette', title: 'Spin to Win', category: 'live', color: 'linear-gradient(160deg,#ffe08a 0%,#d4af37 34%,#c2410c 76%,#7c1d12 100%)', icon: '🎡', active: true, badge: 'LIVE', path: '/roulette' },
   { id: 'lucky-slots', title: 'Lucky Slots', category: 'slot', color: 'linear-gradient(135deg,#7c3aed,#2b1055)', icon: '🍒', active: true, badge: 'NEW', path: '/slots', image: '/images/lucky-slots.jpg' },
-  { id: 'dice', title: 'Dice', category: 'live', color: 'linear-gradient(135deg,#0e7490,#0f2f3d)', icon: '🎲', active: true, badge: 'NEW', path: '/dice' },
+  { id: 'dice', title: 'Dice', category: 'live', color: 'linear-gradient(155deg,#2dd4bf 0%,#0e7490 36%,#0b3a5c 70%,#06182c 100%)', glow: '#5eead4', icon: '🎲', active: true, badge: 'NEW', path: '/dice' },
   { id: 'dice3d', title: '3D Dice 🎲', category: 'live', color: 'linear-gradient(135deg,#0f766e,#062a26)', icon: '🎲', active: true, badge: 'NEW', path: '/dice3d', image: '/images/dice3d.jpg' },
   { id: 'aviator', title: 'Aviator', category: 'live', color: 'linear-gradient(135deg,#b45309,#7c2d12)', icon: '✈️', active: true, badge: 'HOT', path: '/aviator', image: '/images/aviator.jpg' },
-  { id: 'mines', title: 'Mines', category: 'live', color: 'linear-gradient(135deg,#7f1d1d,#0f172a)', icon: '💣', active: true, badge: 'NEW', path: '/mines' },
-  { id: 'plinko', title: 'Plinko', category: 'slot', color: 'linear-gradient(135deg,#4f46e5,#111827)', icon: '⚪', active: true, badge: 'NEW', path: '/plinko' },
+  { id: 'mines', title: 'Mines', category: 'live', color: 'linear-gradient(155deg,#c2301f 0%,#7f1d1d 30%,#2a0707 66%,#050506 100%)', glow: '#ff6a3d', icon: '💣', active: true, badge: 'NEW', path: '/mines' },
+  { id: 'plinko', title: 'Plinko', category: 'slot', color: 'linear-gradient(155deg,#a78bfa 0%,#6d28d9 30%,#3730a3 62%,#0f1240 100%)', glow: '#a5b4fc', icon: '🔴', active: true, badge: 'NEW', path: '/plinko' },
   { id: 'keno', title: 'Keno 🔢', category: 'slot', color: 'linear-gradient(135deg,#0e7490,#164e63)', icon: '🎱', active: true, badge: 'NEW', path: '/keno', image: '/images/keno.jpg' },
   { id: 'baccarat', title: 'Baccarat ♠️', category: 'live', color: 'linear-gradient(135deg,#15803d,#14532d)', icon: '♠️', active: true, badge: 'NEW', path: '/baccarat', image: '/images/baccarat.jpg' },
   { id: 'boxing-king', title: 'Boxing King 🥊', category: 'slot', color: 'linear-gradient(135deg,#b91c1c,#450a0a)', icon: '🥊', active: true, badge: 'NEW', path: '/boxing-king', image: '/images/boxing-king.jpg' },
   { id: 'cascade', title: 'Showdown 🤠', category: 'slot', color: 'linear-gradient(135deg,#a16207,#422006)', icon: '🤠', active: true, badge: 'NEW', path: '/cascade', image: '/images/shodown.jpg' },
   { id: 'blackjack', title: 'Blackjack', category: 'live', color: 'linear-gradient(135deg,#166534,#052e16)', icon: '♠️', active: true, badge: 'NEW', path: '/blackjack', image: '/images/blackjack.jpg' },
-  { id: 'pinata-wins', title: 'Pinata Wins', category: 'slot', color: 'linear-gradient(135deg,#db2777,#831843)', icon: '🪅' },
-  { id: 'super-teddy', title: 'Super Teddy', category: 'slot', color: 'linear-gradient(135deg,#ea580c,#7c2d12)', icon: '🧸' },
-  { id: 'teenpatti', title: 'Teen Patti 🃏', category: 'live', color: 'linear-gradient(135deg,#0891b2,#164e63)', icon: '🃏', active: true, badge: 'NEW', path: '/teenpatti', image: '/images/teenpatti.jpg' },
-  { id: 'dragontiger', title: 'Dragon Tiger 🐉', category: 'live', color: 'linear-gradient(135deg,#4338ca,#1e1b4b)', icon: '🐉', active: true, badge: 'NEW', path: '/dragontiger', image: '/images/dragon.jpg' },
-  { id: 'fruit-bonanza', title: 'Fruit Bonanza 🍉', category: 'slot', color: 'linear-gradient(135deg,#f59e0b,#7c2d12)', icon: '🍉', active: true, badge: 'NEW', path: '/fruit-bonanza', image: '/images/fruit-banana.jpg' },
-  { id: 'fortune-gems', title: 'Fortune Gems 💎', category: 'slot', color: 'linear-gradient(135deg,#d4af37,#5e0f1a)', icon: '💎', active: true, badge: 'NEW', path: '/fortune-gems' },
-  { id: 'dragon-tiger', title: 'Dragon Tiger', category: 'live', color: 'linear-gradient(135deg,#dc2626,#4c0519)', icon: '🐉', badge: 'HOT' },
-  { id: 'lucky-bingo', title: 'Lucky Bingo', category: 'slot', color: 'linear-gradient(135deg,#7c3aed,#4c1d95)', icon: '🎱' },
-  { id: 'ganesha-gold', title: 'Ganesha Gold', category: 'slot', color: 'linear-gradient(135deg,#d97706,#78350f)', icon: '🐘' },
-  { id: 'caishen-wins', title: 'Caishen Wins', category: 'slot', color: 'linear-gradient(135deg,#be123c,#4c0519)', icon: '🧧' },
+  { id: 'pinata-wins', title: 'Pinata Wins', category: 'slot', color: 'linear-gradient(155deg,#fde047 0%,#fb923c 30%,#ec4899 64%,#9d174d 100%)', glow: '#ffd166', icon: '🎉' },
+  { id: 'super-teddy', title: 'Super Teddy', category: 'slot', color: 'linear-gradient(155deg,#fbcfe8 0%,#e9a98b 34%,#b4745a 68%,#5c3a2e 100%)', glow: '#ffd9bf', icon: '🧸' },
+  { id: 'teenpatti', title: 'Teen Patti 🃏', category: 'live', color: 'linear-gradient(155deg,#34d399 0%,#047857 32%,#064e3b 66%,#022c22 100%)', glow: '#6ee7b7', icon: '🃏', active: true, badge: 'NEW', path: '/teenpatti' },
+  { id: 'dragontiger', title: 'Dragon Tiger 🐉', category: 'live', color: 'linear-gradient(155deg,#fcd34d 0%,#d97706 26%,#b91c1c 60%,#4c0519 100%)', glow: '#fbbf24', icon: '🐉', active: true, badge: 'NEW', path: '/dragontiger' },
+  { id: 'fruit-bonanza', title: 'Fruit Bonanza 🍉', category: 'slot', color: 'linear-gradient(155deg,#a3e635 0%,#16a34a 34%,#dc2626 76%,#7f1d1d 100%)', glow: '#bef264', icon: '🍉', active: true, badge: 'NEW', path: '/fruit-bonanza' },
+  { id: 'fortune-gems', title: 'Fortune Gems 💎', category: 'slot', color: 'linear-gradient(155deg,#f0c24a 0%,#b45309 24%,#7f1d1d 58%,#3f0d14 100%)', glow: '#ffd76a', icon: '💎', active: true, badge: 'NEW', path: '/fortune-gems' },
+  { id: 'dragon-tiger', title: 'Dragon Tiger', category: 'live', color: 'linear-gradient(155deg,#fb7185 0%,#be123c 32%,#4c0519 66%,#0a0305 100%)', glow: '#fda4af', icon: '🐉', badge: 'HOT' },
+  { id: 'lucky-bingo', title: 'Lucky Bingo', category: 'slot', color: 'linear-gradient(155deg,#818cf8 0%,#6d28d9 34%,#312e81 68%,#0b0c3a 100%)', glow: '#a5b4fc', icon: '🎱' },
+  { id: 'ganesha-gold', title: 'Ganesha Gold', category: 'slot', color: 'linear-gradient(155deg,#fde68a 0%,#f59e0b 28%,#c2410c 62%,#5a1d06 100%)', glow: '#ffc857', icon: '🐘' },
+  { id: 'caishen-wins', title: 'Caishen Wins', category: 'slot', color: 'linear-gradient(155deg,#fbbf24 0%,#ef4444 30%,#991b1b 64%,#3f0a0a 100%)', glow: '#ffd34d', icon: '🧧' },
   { id: 'classic-roulette', title: 'Classic Roulette 🎡', category: 'live', color: 'linear-gradient(135deg,#0f7a4a,#06251a)', icon: '🎡', active: true, badge: 'NEW', path: '/classic-roulette' },
 ];
+
+/**
+ * Premium tile: a themed gradient + glowing icon, for any game without a photo.
+ * Locked ("Coming Soon") games use it too; CSS veils and padlocks them.
+ */
+function isPremium(game: Game): boolean {
+  return Boolean(game.glow && !game.image);
+}
+
+/**
+ * Inline art background. Photo tiles and the fire wheel bring their own artwork,
+ * so they get no inline style. Locked tiles keep their themed art.
+ */
+function artStyle(game: Game): CSSProperties | undefined {
+  if (game.id === 'roulette' || game.image) {
+    return undefined;
+  }
+
+  return isPremium(game)
+    ? ({ backgroundImage: game.color, '--gc-glow': game.glow } as CSSProperties)
+    : { backgroundImage: game.color };
+}
+
 const NAV_ITEMS: Array<{
   key: NavKey;
   label: string;
@@ -235,12 +264,7 @@ export default function Lobby() {
     <div className="lobby">
       <aside className="lobby__sidebar">
         <div className="sidebar__brand">
-          <span className="sidebar__crown" aria-hidden="true">
-            ♛
-          </span>
-          <span className="sidebar__wordmark">
-            CASINO<em>PLATFORM</em>
-          </span>
+          <img src="/logo.png" alt="Casino Logo" style={{ maxHeight: '40px', width: 'auto' }} />
         </div>
 
         <nav className="side-nav" aria-label="Game categories">
@@ -332,17 +356,14 @@ export default function Lobby() {
                 <button
                   key={game.id}
                   type="button"
-                  className={`game-card${game.active ? ' game-card--active' : ''}${game.id === 'roulette' ? ' game-card--featured' : ''}`}
+                  className={`game-card${game.active ? ' game-card--active' : ' game-card--locked'}${game.id === 'roulette' ? ' game-card--featured' : ''}`}
                   onClick={() => openGame(game)}
                   aria-label={`${game.title} (${game.active ? 'play' : 'coming soon'})`}
+                  aria-disabled={game.active ? undefined : true}
                 >
                   <span
-                    className={`game-card__art${game.id === 'roulette' ? ' game-card__art--fire' : ''}`}
-                    style={
-                      game.id === 'roulette' || game.image
-                        ? undefined
-                        : { backgroundImage: game.color }
-                    }
+                    className={`game-card__art${game.id === 'roulette' ? ' game-card__art--fire' : ''}${isPremium(game) ? ` game-card__art--premium gc-theme-${game.id}` : ''}`}
+                    style={artStyle(game)}
                   >
                     {game.badge && (
                       <span
@@ -365,6 +386,14 @@ export default function Lobby() {
                       <>
                         {game.id === 'roulette' ? (
                           <FireRouletteWheel />
+                        ) : isPremium(game) ? (
+                          <span className="gc3d" aria-hidden="true">
+                            <span className="gc3d__halo" />
+                            <span className="gc3d__float">
+                              <span className="game-card__emoji">{game.icon}</span>
+                            </span>
+                            <span className="gc3d__floor" />
+                          </span>
                         ) : (
                           <span className="game-card__emoji" aria-hidden="true">
                             {game.icon}
