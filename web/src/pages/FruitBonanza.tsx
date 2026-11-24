@@ -4,6 +4,7 @@ import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, FruitBonanzaConfig, FruitBonanzaResult, FruitLineResult } from '../api/types';
 import { GameShell } from '../components/GameShell';
 import { GameResultOverlay } from '../components/GameResultOverlay';
+import { useGameMusic } from '../hooks/useGameMusic';
 import { playSound } from '../utils/sound';
 
 const DEFAULT_BET = 5;
@@ -40,6 +41,8 @@ async function fetchBalance(): Promise<number> { const { data } = await api.get<
 async function fetchConfig(): Promise<FruitBonanzaConfig> { const { data } = await api.get<FruitBonanzaConfig>('/game/fruit_bonanza/config'); return data; }
 
 export default function FruitBonanza() {
+  useGameMusic('/audio/slots-bgm.mp3', 0.4);
+
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);
   const [amount, setAmount] = useState(String(DEFAULT_BET));

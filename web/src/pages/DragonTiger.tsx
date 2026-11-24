@@ -9,6 +9,7 @@ import type {
 } from '../api/types';
 import { GameShell } from '../components/GameShell';
 import { GameResultOverlay } from '../components/GameResultOverlay';
+import { useGameMusic } from '../hooks/useGameMusic';
 import { playSound } from '../utils/sound';
 
 const DEFAULT_BET = 10;
@@ -60,6 +61,8 @@ function CardBack({ label }: { label: string }) {
 }
 
 export default function DragonTiger() {
+  useGameMusic('/audio/cards-bgm.mp3', 0.4);
+
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);
   const [amount, setAmount] = useState(String(DEFAULT_BET));

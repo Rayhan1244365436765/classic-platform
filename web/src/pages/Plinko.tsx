@@ -4,6 +4,7 @@ import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, PlinkoConfig, PlinkoResult } from '../api/types';
 import { GameShell } from '../components/GameShell';
 import { GameResultOverlay } from '../components/GameResultOverlay';
+import { useGameMusic } from '../hooks/useGameMusic';
 import { playSound } from '../utils/sound';
 
 /**
@@ -245,6 +246,8 @@ function ballAt(
 }
 
 export default function Plinko() {
+  useGameMusic('/audio/slots-bgm.mp3', 0.4);
+
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);
 

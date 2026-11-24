@@ -4,6 +4,7 @@ import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, KenoConfig, KenoPayTable, KenoResult } from '../api/types';
 import { GameShell } from '../components/GameShell';
 import { GameResultOverlay } from '../components/GameResultOverlay';
+import { useGameMusic } from '../hooks/useGameMusic';
 import { playSound, startSpin, stopSpin } from '../utils/sound';
 
 const DEFAULT_BET = 10;
@@ -48,6 +49,8 @@ function payTableFor(config: KenoConfig, picks: number): KenoPayTable {
 }
 
 export default function Keno() {
+  useGameMusic('/audio/slots-bgm.mp3', 0.4);
+
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);
   const [amount, setAmount] = useState(String(DEFAULT_BET));

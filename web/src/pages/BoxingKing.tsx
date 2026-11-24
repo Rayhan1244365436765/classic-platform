@@ -3,6 +3,7 @@ import { GameShell } from '../components/GameShell';
 import { GameResultOverlay } from '../components/GameResultOverlay';
 import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, BoxingKingConfig, BoxingKingResult } from '../api/types';
+import { useGameMusic } from '../hooks/useGameMusic';
 import { playSound } from '../utils/sound';
 
 const DEFAULT_BET = 5;
@@ -72,6 +73,8 @@ async function fetchConfig(): Promise<BoxingKingConfig> {
 }
 
 export default function BoxingKing() {
+  useGameMusic('/audio/slots-bgm.mp3', 0.4);
+
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);
 

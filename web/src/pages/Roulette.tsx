@@ -8,7 +8,7 @@ import { GameBottomBar } from '../components/GameBottomBar';
 import { GameResultOverlay } from '../components/GameResultOverlay';
 import { LivePlayerBadge } from '../components/LivePlayerBadge';
 import { SoundToggle } from '../components/SoundToggle';
-import { useAudio } from '../context/audio-context';
+import { useGameMusic } from '../hooks/useGameMusic';
 import { playSound } from '../utils/sound';
 
 /**
@@ -127,12 +127,7 @@ export default function Roulette() {
   const [landingIndex, setLandingIndex] = useState(0);
 
   // Background music: a looping bed starts on arrival and stops on leave.
-  const { playBgTrack, stopBgTrack } = useAudio();
-
-  useEffect(() => {
-    playBgTrack('/audio/spin-to-win-bgm.mp3', { loop: true, volume: 0.5 });
-    return () => stopBgTrack();
-  }, [playBgTrack, stopBgTrack]);
+  useGameMusic('/audio/spin-to-win-bgm.mp3', 0.5);
 
   const segmentDeg = 360 / segments.length;
   const wheelRotation = -(turns * TURNS_PER_SPIN * 360) - landingIndex * segmentDeg;

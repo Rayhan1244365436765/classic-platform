@@ -13,6 +13,7 @@ import { GameBottomBar } from '../components/GameBottomBar';
 import { GameResultOverlay } from '../components/GameResultOverlay';
 import { LivePlayerBadge } from '../components/LivePlayerBadge';
 import { SoundToggle } from '../components/SoundToggle';
+import { useGameMusic } from '../hooks/useGameMusic';
 import {
   playSound,
   startFlightTone,
@@ -680,6 +681,9 @@ function PlaneSprite() {
 }
 
 export default function Aviator() {
+  // Quieter than the other games: the synthesized engine hum plays over this bed.
+  useGameMusic('/audio/aviator-bgm.mp3', 0.25);
+
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);
 

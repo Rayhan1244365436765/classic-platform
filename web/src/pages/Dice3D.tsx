@@ -8,6 +8,7 @@ import { LivePlayerBadge } from '../components/LivePlayerBadge';
 import { SoundToggle } from '../components/SoundToggle';
 import { GameBottomBar } from '../components/GameBottomBar';
 import { GameResultOverlay } from '../components/GameResultOverlay';
+import { useGameMusic } from '../hooks/useGameMusic';
 import { playSound } from '../utils/sound';
 
 /**
@@ -191,6 +192,8 @@ function Die({
 }
 
 export default function Dice3D() {
+  useGameMusic('/audio/3d-dice-mp3.mp3', 0.4);
+
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);
 

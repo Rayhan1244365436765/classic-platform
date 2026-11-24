@@ -10,6 +10,7 @@ import type {
 } from '../api/types';
 import { GameShell } from '../components/GameShell';
 import { GameResultOverlay } from '../components/GameResultOverlay';
+import { useGameMusic } from '../hooks/useGameMusic';
 import { playSound } from '../utils/sound';
 
 /**
@@ -102,6 +103,8 @@ function cardValue(code: BaccaratCard): number {
 }
 
 export default function Baccarat() {
+  useGameMusic('/audio/cards-bgm.mp3', 0.4);
+
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);
 

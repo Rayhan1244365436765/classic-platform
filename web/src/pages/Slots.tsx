@@ -3,7 +3,7 @@ import { GameShell } from '../components/GameShell';
 import { GameResultOverlay } from '../components/GameResultOverlay';
 import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, SlotsConfig, SlotsResult } from '../api/types';
-import { useAudio } from '../context/audio-context';
+import { useGameMusic } from '../hooks/useGameMusic';
 import { playSound } from '../utils/sound';
 
 /**
@@ -73,12 +73,7 @@ export default function Slots() {
 
   // Background music: a looping bed starts on arrival and stops on leave. The
   // BGM engine follows the global mute toggle, so 🔊/🔇 silences it too.
-  const { playBgTrack, stopBgTrack } = useAudio();
-
-  useEffect(() => {
-    playBgTrack('/audio/lucky-slots.mp3', { loop: true, volume: 0.4 });
-    return () => stopBgTrack();
-  }, [playBgTrack, stopBgTrack]);
+  useGameMusic('/audio/lucky-slots.mp3', 0.4);
 
   const refreshBalance = useCallback(async () => {
     try {

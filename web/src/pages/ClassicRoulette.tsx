@@ -4,6 +4,7 @@ import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, ClassicRouletteConfig, ClassicRouletteResult, PocketColor, RouletteBetType } from '../api/types';
 import { GameShell } from '../components/GameShell';
 import { GameResultOverlay } from '../components/GameResultOverlay';
+import { useGameMusic } from '../hooks/useGameMusic';
 import { playSound } from '../utils/sound';
 
 const DEFAULT_BET = 10;
@@ -54,6 +55,8 @@ function paintWheel(ctx: CanvasRenderingContext2D, size: number, config: Classic
 const WHEEL_SIZE = 440;
 
 export default function ClassicRoulette() {
+  useGameMusic('/audio/casual-bgm.mp3', 0.4);
+
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);
   const [amount, setAmount] = useState(String(DEFAULT_BET));

@@ -8,7 +8,7 @@ import { LivePlayerBadge } from '../components/LivePlayerBadge';
 import { SoundToggle } from '../components/SoundToggle';
 import { GameBottomBar } from '../components/GameBottomBar';
 import { GameResultOverlay } from '../components/GameResultOverlay';
-import { useAudio } from '../context/audio-context';
+import { useGameMusic } from '../hooks/useGameMusic';
 import { playSound } from '../utils/sound';
 
 /**
@@ -140,12 +140,7 @@ export default function Cascade() {
 
   // Background music: a looping bed starts on arrival and stops on leave. The
   // BGM engine follows the global mute toggle, so 🔊/🔇 silences it too.
-  const { playBgTrack, stopBgTrack } = useAudio();
-
-  useEffect(() => {
-    playBgTrack('/audio/showdown.mp3', { loop: true, volume: 0.4 });
-    return () => stopBgTrack();
-  }, [playBgTrack, stopBgTrack]);
+  useGameMusic('/audio/showdown.mp3', 0.4);
 
   const refreshBalance = useCallback(async () => {
     try {

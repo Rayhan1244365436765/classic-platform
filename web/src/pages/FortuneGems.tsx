@@ -4,6 +4,7 @@ import { GameShell } from '../components/GameShell';
 import { GameResultOverlay } from '../components/GameResultOverlay';
 import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, FortuneGemsConfig, FortuneGemsResult } from '../api/types';
+import { useGameMusic } from '../hooks/useGameMusic';
 import { playSound } from '../utils/sound';
 
 /**
@@ -61,6 +62,8 @@ async function fetchConfig(): Promise<FortuneGemsConfig> {
 }
 
 export default function FortuneGems() {
+  useGameMusic('/audio/slots-bgm.mp3', 0.4);
+
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);
 

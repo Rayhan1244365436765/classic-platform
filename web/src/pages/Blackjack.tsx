@@ -4,6 +4,7 @@ import { api, getApiErrorMessage } from '../api/client';
 import type { BalanceResponse, BlackjackState } from '../api/types';
 import { GameShell } from '../components/GameShell';
 import { GameResultOverlay } from '../components/GameResultOverlay';
+import { useGameMusic } from '../hooks/useGameMusic';
 import { playSound } from '../utils/sound';
 
 /**
@@ -64,6 +65,8 @@ async function fetchBalance(): Promise<number> {
 }
 
 export default function Blackjack() {
+  useGameMusic('/audio/cards-bgm.mp3', 0.4);
+
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);
 
