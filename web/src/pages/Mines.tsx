@@ -303,7 +303,7 @@ export default function Mines() {
         </div>
       }
     >
-      <section className="rt__stage">
+      <section className="rt__stage mines-stage">
         <div className={`mines${active ? ' mines--active' : ''}`}>
           <div className="mines__grid" role="grid" aria-label="Mines board">
             {Array.from({ length: GRID_SIZE }, (_, index) => {

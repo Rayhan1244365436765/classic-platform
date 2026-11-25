@@ -1,6 +1,11 @@
 import { z } from 'zod';
 
 import { CRASH_RETURN_FACTOR } from '../game/aviator/aviator.service.js';
+import {
+  DEFAULT_PAYOUT_CONFIG as ROULETTE_DEFAULTS,
+  payoutsFor as roulettePayoutsFor,
+  rouletteRtp,
+} from '../game/classic_roulette/classic_roulette.service.js';
 import { DICE_PAYTABLE, diceRtp } from '../game/dice/dice.service.js';
 import {
   KENO_MAX_PICKS,
@@ -118,4 +123,25 @@ export const CORE_GAMES: GameEntry[] = [
     rtp: (config) => ({ lines: [{ label: 'Board', rtp: plinkoRtp(config.multipliers) }] }),
   }),
   keno,
+  defineGame({
+    id: 'classic_roulette',
+    label: 'Classic Roulette',
+    description: 'Single-zero wheel (37 pockets). Total return per unit staked on a straight number and on every even-money bet.',
+    schema: z.object({ straight: posPay, evenMoney: posPay }).strict(),
+    defaults: () => ({ ...ROULETTE_DEFAULTS }),
+    fields: [
+      { key: 'straight', label: 'Straight number pays', kind: 'number', min: 0, step: 1, help: 'Default 36 (35:1 plus the stake). RTP = pays ÷ 37.' },
+      { key: 'evenMoney', label: 'Even-money bets pay', kind: 'number', min: 0, step: 0.05, help: 'Red/Black, Even/Odd, Low/High. Default 2. RTP = pays × 18 ÷ 37.' },
+    ],
+    rtp: (config) => {
+      const payouts = roulettePayoutsFor(config);
+      return {
+        lines: [
+          { label: 'Straight number', rtp: rouletteRtp('number', payouts) },
+          // Every even-money bet shares one payout and wins on 18 pockets, so one line covers them all.
+          { label: 'Red / Black / Even / Odd / Low / High', rtp: rouletteRtp('red', payouts) },
+        ],
+      };
+    },
+  }),
 ];

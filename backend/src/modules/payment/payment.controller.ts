@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 
 import { AppError } from '../../common/utils/AppError.js';
 import { requireUserId } from '../../common/utils/requireUser.js';
-import { depositSchema } from './payment.schema.js';
+import { depositSchema, withdrawSchema } from './payment.schema.js';
 import {
   createDepositRequest,
   createWithdrawRequest,
@@ -33,7 +33,14 @@ export async function deposit(
   }
 }
 
-/** POST /api/payment/withdraw  body: { amount } */
+/**
+ * POST /api/payment/withdraw
+ * body: { amount, paymentMethod: 'bkash' | 'nagad', receiverNumber }
+ *
+ * Validation messages are Bangla (the web cashier shows them verbatim), so only
+ * the messages are returned — not the English `field:` prefix the global
+ * handler adds for other endpoints.
+ */
 export async function withdraw(
   req: Request,
   res: Response,
@@ -41,8 +48,17 @@ export async function withdraw(
 ): Promise<void> {
   try {
     const userId = requireUserId(req);
-    const amount = readAmount(req);
-    const payment = await createWithdrawRequest(userId, amount);
+
+    const parsed = withdrawSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        400,
+        parsed.error.issues.map((issue) => issue.message).join('; '),
+      );
+    }
+
+    const payment = await createWithdrawRequest(userId, parsed.data);
     res.status(201).json({ payment });
   } catch (error) {
     next(error);
@@ -64,18 +80,3 @@ export async function myPayments(
   }
 }
 
-/** Numbers are accepted as-is; numeric strings are coerced. */
-function readAmount(req: Request): number {
-  const raw = (req.body as { amount?: unknown } | undefined)?.amount;
-  const amount = typeof raw === 'string' ? Number(raw) : raw;
-
-  if (typeof amount !== 'number' || !Number.isFinite(amount)) {
-    throw new AppError(
-      'VALIDATION_ERROR',
-      400,
-      'amount: Amount is required and must be a number',
-    );
-  }
-
-  return amount;
-}

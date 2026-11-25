@@ -2747,6 +2747,97 @@ button:not(:disabled):hover {
   flex: 1;
 }
 
+/* Withdraw form: never wider than the panel, text inputs stay >= 16px so iOS
+   Safari does not zoom the page on focus (which would push content sideways). */
+.cashier-form,
+.cashier-form .field,
+.cashier-form input {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.cashier-form input {
+  width: 100%;
+  min-height: 46px;
+  font-size: 16px;
+}
+
+.cashier-form .error,
+.cashier-form .hint {
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+.cashier-form .hint {
+  margin-top: 1rem;
+  font-size: 0.82rem;
+}
+
+.cashier-form .row > button {
+  min-height: 48px;
+}
+
+/* bKash / Nagad segmented picker */
+.cashier-methods {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.cashier-method {
+  min-width: 0;
+  min-height: 48px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 10px;
+  background: #0f1218;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.cashier-method--bkash {
+  border-left-color: #e2136e;
+}
+
+.cashier-method--nagad {
+  border-left-color: #f6921e;
+}
+
+.cashier-method--active {
+  border-color: var(--accent);
+  background: rgb(212 175 55 / 14%);
+  color: var(--accent);
+  box-shadow: 0 0 12px rgb(212 175 55 / 22%);
+}
+
+.cashier-method:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* A tall form on a short phone screen scrolls inside the panel instead of
+   hiding the submit button below the fold. */
+.modal__panel {
+  max-height: calc(100dvh - 2rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 430px) {
+  .modal {
+    padding: 0.75rem;
+  }
+
+  .modal__panel {
+    width: 100%;
+    padding: 1.1rem;
+    max-height: calc(100dvh - 1.5rem);
+  }
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 900px) {
   .lobby__body {
@@ -10476,3 +10567,175 @@ button:not(:disabled):hover {
   color: #7a8398;
 }
 
+
+/* ---------- Touch devices: no iOS focus-zoom on form fields ----------
+   iOS Safari zooms the whole page when a focused <input>/<select> has a computed
+   font-size below 16px, and leaves it zoomed afterwards. The bet / auto-cash-out /
+   select controls above are 11–14px, so on phones and other touch screens they are
+   raised to 16px. Desktop (fine pointer, wide screen) keeps the compact sizes. */
+@media (max-width: 767px), (pointer: coarse) {
+  .gbb-custom__input,
+  .aviator-auto__input,
+  .chips__custom,
+  .d3d-select select {
+    font-size: 16px;
+  }
+
+  /* Wider fields so the larger digits keep the same breathing room. */
+  .gbb-custom__input {
+    width: 6.5rem;
+  }
+
+  .aviator-auto__input {
+    width: 5.4rem;
+  }
+}
+
+/* ---------- Mobile touch targets: Keno board + Classic Roulette table ----------
+   Keno: the board shrink-wrapped inside the centred stage (283px of a 360px screen),
+   which made the 80 cells 30px. Letting it fill the stage and trimming its padding/gap
+   gives ~38px cells (80 cells cannot all reach 44px in 8 columns on a 360px screen), with
+   a larger number so they stay easy to read. The "Picks" chips were being squeezed below
+   44px wide by flex-shrink, so they keep their size and scroll instead. */
+/* The stage is a grid item centred by .gs__main, so it shrink-wraps its content (and an
+   aspect-ratio grid has no content width of its own). Stretch it so the board can use the
+   full width. These games only ever render inside the phone-sized frame, so this is safe at
+   every viewport; the board is capped so it can't balloon on a tablet. */
+.keno-stage,
+.mines-stage {
+  width: 100%;
+}
+
+.keno-board {
+  width: min(100%, 520px);
+}
+
+@media (max-width: 560px) {
+  .keno-board {
+    gap: 0.2rem;
+    padding: 0.35rem;
+  }
+
+  .keno-cell {
+    font-size: 0.8rem;
+  }
+
+  .keno-picks {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .keno-picks::-webkit-scrollbar {
+    display: none;
+  }
+
+  .keno-picks .chip {
+    flex: none;
+  }
+}
+
+/* Classic Roulette: number cells were 30–33px tall and the outside bets were pulled down
+   to 40px by the 900px rule; both are plain tap targets, so they get the 44px minimum. */
+@media (max-width: 767px) {
+  .cr-num,
+  .cr-outside__box {
+    min-height: 44px;
+  }
+}
+
+
+/* ---------- Mobile overflow fixes: Teen Patti, Baccarat, Spin to Win ----------
+   Each of these made the whole page wider than the phone (Teen Patti 486px, Spin to Win up
+   to 486px, Baccarat 370px at 360px), which also stretched the fixed top bar and dock past
+   the screen edge. They apply to phones (<=480px) and to the desktop phone frame (>=769px,
+   where the viewport is wide but the game is still phone-sized). Tablets keep the existing
+   <=720px rules. */
+@media (max-width: 480px), (min-width: 769px) {
+  /* Teen Patti: two seats of three cards cannot sit side by side in ~340px, so the seats
+     stack (Player, VS, Dealer) and keep their full-size cards. */
+  .tp-table {
+    gap: 0.8rem;
+    padding: 0.9rem 0.7rem 1rem;
+  }
+
+  .tp-table__seats {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.4rem;
+  }
+
+  .tp-table__vs {
+    justify-self: center;
+    width: 34px;
+    height: 34px;
+    font-size: 0.56rem;
+  }
+
+  .tp-seat {
+    min-width: 0;
+  }
+
+  .tp-card {
+    width: 54px;
+    height: 78px;
+  }
+
+  .tp-card__suit {
+    font-size: 1.3rem;
+  }
+
+  .tp-hand {
+    gap: 0.25rem;
+    min-height: 82px;
+  }
+
+  /* Baccarat: stays side by side, but the seats may shrink (minmax(0,...)) and the cards
+     flex down with them, so a third card on each side can never push the table wider. */
+  .bac-table {
+    gap: 0.8rem;
+    padding: 0.9rem 0.6rem 1rem;
+  }
+
+  .bac-table__seats {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 0.35rem;
+  }
+
+  .bac-seat {
+    min-width: 0;
+    padding: 0.55rem 0.45rem;
+  }
+
+  .bac-hand {
+    min-width: 0;
+    min-height: 86px;
+    gap: 0.3rem;
+  }
+
+  .bac-card {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    max-width: 58px;
+    height: auto;
+    aspect-ratio: 58 / 82;
+    padding: 0.3rem;
+  }
+
+  .bac-card__rank {
+    font-size: 0.9rem;
+  }
+
+  .bac-card__suit {
+    font-size: 1.4rem;
+  }
+}
+
+/* Spin to Win: the 20 rotated label boxes are as wide as the wheel, so their rotated bounding
+   boxes stick out past the screen and widen the page. Nothing visible is out there, so clip it
+   (horizontal only, so the pointer and glow keep their vertical room). */
+@media (max-width: 767px) {
+  .rt--spin .rt__body {
+    overflow-x: clip;
+  }
+}

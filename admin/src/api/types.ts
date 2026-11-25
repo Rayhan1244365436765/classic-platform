@@ -49,7 +49,10 @@ export type PaymentRequest = {
   trxId: string | null;
   /** Number the player paid from (deposits only). */
   senderNumber: string | null;
+  /** Deposits: provider paid through. Withdrawals: provider to pay out through. */
   paymentMethod: 'bkash' | 'nagad';
+  /** Number a withdrawal must be paid out to (null for deposits / pre-026 withdrawals). */
+  receiverNumber: string | null;
   phone?: string;
 };
 

@@ -8,9 +8,10 @@ import {
   type FormEvent,
 } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { isAxiosError } from 'axios';
 
 import { api, getApiErrorMessage } from '../api/client';
-import type { BalanceResponse, PaymentResponse } from '../api/types';
+import type { ApiErrorBody, BalanceResponse, PaymentResponse } from '../api/types';
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -130,6 +131,57 @@ async function fetchBalance(): Promise<number> {
   return data.balance;
 }
 
+// ---------------------------------------------------------------------------
+// Withdraw (Bangla) — mirrors backend/src/modules/payment/payment.schema.ts
+// ---------------------------------------------------------------------------
+
+type WithdrawMethod = 'bkash' | 'nagad';
+
+const WITHDRAW_METHODS: { value: WithdrawMethod; label: string }[] = [
+  { value: 'bkash', label: 'বিকাশ' },
+  { value: 'nagad', label: 'নগদ' },
+];
+
+/** Bangladeshi mobile number in local form: 01[3-9] + 8 digits. */
+const BD_MOBILE = /^01[3-9]\d{8}$/;
+
+const BANGLA_DIGITS = '০১২৩৪৫৬৭৮৯';
+
+/** "+880 1712-345678" / "০১৭১২৩৪৫৬৭৮" → "01712345678". */
+function cleanPhone(value: string): string {
+  return value
+    .replace(/[০-৯]/g, (digit) => String(BANGLA_DIGITS.indexOf(digit)))
+    .replace(/[\s-]/g, '')
+    .replace(/^\+?88(?=01)/, '');
+}
+
+/** Shows the player's Bangla messages; turns known English API errors into Bangla. */
+function withdrawErrorMessage(error: unknown): string {
+  if (!isAxiosError(error)) {
+    return 'উইথড্র অনুরোধ পাঠানো যায়নি। আবার চেষ্টা করুন।';
+  }
+
+  if (!error.response) {
+    return 'সার্ভারের সাথে সংযোগ করা যাচ্ছে না। ইন্টারনেট সংযোগ দেখে আবার চেষ্টা করুন।';
+  }
+
+  const body = error.response.data as ApiErrorBody | undefined;
+  const code = body?.error?.code;
+  const message = body?.error?.message ?? '';
+
+  if (code === 'INSUFFICIENT_FUNDS') {
+    return 'আপনার ব্যালেন্স যথেষ্ট নয়।';
+  }
+  if (code === 'VALIDATION_ERROR' && /[\u0980-\u09FF]/.test(message)) {
+    return message;
+  }
+  if (error.response.status === 401) {
+    return 'আপনার সেশন শেষ হয়ে গেছে। আবার লগইন করুন।';
+  }
+
+  return 'উইথড্র অনুরোধ পাঠানো যায়নি। আবার চেষ্টা করুন।';
+}
+
 export default function Lobby() {
   const navigate = useNavigate();
   const { logout } = useAuth();
@@ -144,6 +196,8 @@ export default function Lobby() {
     () => new URLSearchParams(window.location.search).get('cashier') === '1',
   );
   const [amount, setAmount] = useState('10');
+  const [withdrawMethod, setWithdrawMethod] = useState<WithdrawMethod>('bkash');
+  const [receiverNumber, setReceiverNumber] = useState('');
   const [busy, setBusy] = useState(false);
   const [cashierError, setCashierError] = useState<string | null>(null);
 
@@ -224,24 +278,38 @@ export default function Lobby() {
 
   /** Withdrawals only — deposits have their own page (/deposit) with bKash/Nagad details. */
   async function performWithdraw() {
-    const kind = 'withdraw';
     setCashierError(null);
 
     const value = Number(amount);
+    const receiver = cleanPhone(receiverNumber);
+
     if (!Number.isFinite(value) || value <= 0) {
-      setCashierError('Enter an amount greater than 0.');
+      setCashierError('পরিমাণ ০ টাকার বেশি হতে হবে।');
+      return;
+    }
+    if (balance !== null && value > balance) {
+      setCashierError('আপনার ব্যালেন্স যথেষ্ট নয়।');
+      return;
+    }
+    if (!BD_MOBILE.test(receiver)) {
+      setCashierError('সঠিক বাংলাদেশি মোবাইল নম্বর দিন (যেমন 01712345678)।');
       return;
     }
 
     setBusy(true);
 
     try {
-      await api.post<PaymentResponse>(`/payment/${kind}`, { amount: value });
+      await api.post<PaymentResponse>('/payment/withdraw', {
+        amount: value,
+        paymentMethod: withdrawMethod,
+        receiverNumber: receiver,
+      });
       setCashierOpen(false);
-      setToast('Withdrawal request pending admin approval');
+      setReceiverNumber('');
+      setToast('উইথড্র অনুরোধ জমা হয়েছে — অ্যাডমিনের অনুমোদনের অপেক্ষায়');
       await refreshBalance();
     } catch (requestError) {
-      setCashierError(getApiErrorMessage(requestError, `Could not request a ${kind}.`));
+      setCashierError(withdrawErrorMessage(requestError));
     } finally {
       setBusy(false);
     }
@@ -491,32 +559,75 @@ export default function Lobby() {
       )}
 
       {cashierOpen && (
-        <Modal title="Withdraw" onClose={() => setCashierOpen(false)}>
-          <form className="cashier-form" onSubmit={handleWithdraw}>
+        <Modal title="টাকা উত্তোলন" closeLabel="বন্ধ করুন" onClose={() => setCashierOpen(false)}>
+          <form className="cashier-form" onSubmit={handleWithdraw} noValidate>
+            <div className="field" role="radiogroup" aria-labelledby="withdraw-method-label">
+              <span id="withdraw-method-label">পেমেন্ট মাধ্যম (বিকাশ নাকি নগদ)</span>
+              <div className="cashier-methods">
+                {WITHDRAW_METHODS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={withdrawMethod === option.value}
+                    className={`cashier-method cashier-method--${option.value}${
+                      withdrawMethod === option.value ? ' cashier-method--active' : ''
+                    }`}
+                    onClick={() => setWithdrawMethod(option.value)}
+                    disabled={busy}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <label className="field">
-              <span>Amount (৳)</span>
+              <span>
+                যে নম্বরে টাকা নেবেন ({withdrawMethod === 'bkash' ? 'বিকাশ' : 'নগদ'} নম্বর)
+              </span>
+              <input
+                type="tel"
+                inputMode="numeric"
+                value={receiverNumber}
+                onChange={(event) => setReceiverNumber(event.target.value)}
+                placeholder="01XXXXXXXXX"
+                autoComplete="tel"
+                maxLength={20}
+                disabled={busy}
+                autoFocus
+              />
+            </label>
+
+            <label className="field">
+              <span>পরিমাণ (৳)</span>
               <input
                 type="number"
+                inputMode="decimal"
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
                 min={0.5}
-                step={0.5}
-                autoFocus
-                required
+                step="any"
+                placeholder="যেমন 100"
+                disabled={busy}
               />
             </label>
 
             <div className="row">
               <button type="submit" className="button-primary" disabled={busy}>
                 <ArrowUpIcon className="icon icon--sm" />
-                {busy ? 'Sending…' : 'Withdraw'}
+                {busy ? 'পাঠানো হচ্ছে…' : 'উত্তোলনের অনুরোধ করুন'}
               </button>
             </div>
 
-            {cashierError && <p className="error">{cashierError}</p>}
+            {cashierError && (
+              <p className="error" role="alert">
+                {cashierError}
+              </p>
+            )}
             <p className="hint">
-              Requests are reviewed by an operator. Withdrawals are debited immediately and refunded
-              if rejected.
+              অনুরোধটি একজন অপারেটর যাচাই করবেন। টাকা সাথে সাথে আপনার ব্যালেন্স থেকে কেটে নেওয়া হয়
+              এবং অনুরোধ বাতিল হলে ফেরত দেওয়া হয়।
             </p>
           </form>
         </Modal>

@@ -32,7 +32,10 @@ export type PaymentRequest = {
   trxId: string | null;
   /** Number the player paid from (deposits only). */
   senderNumber: string | null;
+  /** Deposits: provider paid through. Withdrawals: provider to be paid out through. */
   paymentMethod: 'bkash' | 'nagad';
+  /** Number a withdrawal is paid out to (null for deposits / older withdrawals). */
+  receiverNumber: string | null;
 };
 
 export type PaymentResponse = {

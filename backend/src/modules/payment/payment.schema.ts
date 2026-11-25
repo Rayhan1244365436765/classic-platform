@@ -19,6 +19,14 @@ function normalisePhone(value: unknown): unknown {
   return value.replace(/[\s-]/g, '').replace(/^\+?88(?=01)/, '');
 }
 
+/** Bangla digits (০-৯) → ASCII (0-9), so "০১৭১২৩৪৫৬৭৮" is accepted as typed on a Bangla keyboard. */
+function toAsciiDigits(value: unknown): unknown {
+  if (typeof value !== 'string') {
+    return value;
+  }
+  return value.replace(/[০-৯]/g, (digit) => String('০১২৩৪৫৬৭৮৯'.indexOf(digit)));
+}
+
 /** Trims and upper-cases so "8n7a6d5e4c" and "8N7A6D5E4C" count as the same id. */
 function normaliseTrxId(value: unknown): unknown {
   return typeof value === 'string' ? value.trim().toUpperCase() : value;
@@ -51,3 +59,27 @@ export const depositSchema = z.object({
 });
 
 export type DepositInput = z.infer<typeof depositSchema>;
+
+/**
+ * POST /api/payment/withdraw body.
+ *
+ * The player says where the money should go: the provider (`bkash` / `nagad`)
+ * and the mobile number that receives it. Both are required — there is no
+ * default provider, so a payout can never silently go to the wrong place.
+ *
+ * Messages are in Bangla because they are shown to the player as-is.
+ */
+export const withdrawSchema = z.object({
+  amount: z.coerce
+    .number({ error: 'পরিমাণ অবশ্যই একটি সংখ্যা হতে হবে' })
+    .positive('পরিমাণ ০ টাকার বেশি হতে হবে'),
+  paymentMethod: z.enum(PAYMENT_METHODS, { error: 'বিকাশ অথবা নগদ বেছে নিন' }),
+  receiverNumber: z.preprocess(
+    (value) => normalisePhone(toAsciiDigits(value)),
+    z
+      .string({ error: 'যে নম্বরে টাকা নেবেন তা লিখুন' })
+      .regex(BD_MOBILE, 'সঠিক বাংলাদেশি মোবাইল নম্বর দিন (যেমন 01712345678)'),
+  ),
+});
+
+export type WithdrawInput = z.infer<typeof withdrawSchema>;

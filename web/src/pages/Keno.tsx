@@ -200,7 +200,7 @@ export default function Keno() {
       isSpinning={drawing}
       disabled={!ready}
       controls={
-        <div className="chips" style={{ flexWrap: 'nowrap', overflowX: 'auto' }}>
+        <div className="chips keno-picks" style={{ flexWrap: 'nowrap', overflowX: 'auto' }}>
           <span className="panel-label" style={{ marginRight: 8 }}>Picks</span>
           {pickOptions.map((count) => (
             <button
@@ -217,7 +217,7 @@ export default function Keno() {
         </div>
       }
     >
-      <section className="rt__stage">
+      <section className="rt__stage keno-stage">
         <div className={`keno-board${drawing ? ' keno-board--drawing' : ''}`} role="group" aria-label={`Keno board, ${config.pool} numbers`}>
           {cellNumbers.map((number) => {
             const picked = pickedSet.has(number);

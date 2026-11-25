@@ -19,9 +19,18 @@ import { playSound } from '../utils/sound';
 const ROWS = 8;
 const SLOTS = 9;
 
-/** Logical canvas size; CSS scales it to the container. */
-const CANVAS_W = 720;
+/**
+ * Logical canvas size; CSS scales it to the container. The widest thing drawn is the
+ * slot row (9 × PEG_GAP_X = 558), so 620 leaves a small margin on each side instead of
+ * the ~80px of dead space the old 720 had — on a phone that makes the whole board
+ * render ~15% larger.
+ */
+const CANVAS_W = 620;
 const CANVAS_H = 560;
+/** Highest device-pixel-ratio the backing store is sized for (3× would triple the fill cost). */
+const MAX_DPR = 2;
+/** Smallest on-screen size (CSS px) a slot label may be drawn at. */
+const MIN_LABEL_PX = 11;
 const PEG_TOP_Y = 82;
 const PEG_GAP_X = 62;
 const PEG_GAP_Y = 47;
@@ -37,6 +46,14 @@ const DEFAULT_BET = 10;
 type Phase = 'idle' | 'dropping' | 'landed';
 
 type Point = { x: number; y: number };
+
+/** How the logical canvas maps onto the screen. */
+type CanvasView = {
+  /** Backing-store pixels per logical unit (device-pixel-ratio, capped). */
+  dpr: number;
+  /** CSS pixels per logical unit (rendered width ÷ CANVAS_W). */
+  scale: number;
+};
 
 function slotTopY(): number {
   return PEG_TOP_Y + ROWS * PEG_GAP_Y + 8;
@@ -101,10 +118,12 @@ function paintBoard(
   ball: Point | null,
   landedSlot: number | null,
   glow: number,
+  view: CanvasView,
 ): void {
   const slotTop = slotTopY();
 
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  // Draw in logical units; the transform maps them onto the (DPR-sized) backing store.
+  ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
   ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
 
   // Board backdrop.
@@ -173,11 +192,18 @@ function paintBoard(
       : 'rgba(8, 12, 22, 0.55)';
     ctx.stroke();
 
+    // The canvas is scaled down on phones (~0.55×), which would shrink a 14px label to
+    // ~8px. Draw it at the size that renders at MIN_LABEL_PX on screen (never below the
+    // original 14/15), and drop the trailing "x" on small boards so it still fits the slot.
+    const baseSize = multiplier >= 5 ? 15 : 14;
+    const size = Math.max(baseSize, MIN_LABEL_PX / view.scale);
+    const label = view.scale < 0.75 ? multiplier.toFixed(2) : `${multiplier.toFixed(2)}x`;
+
     ctx.fillStyle = palette.text;
-    ctx.font = `800 ${multiplier >= 5 ? 15 : 14}px "Segoe UI", system-ui, sans-serif`;
+    ctx.font = `800 ${size}px "Segoe UI", system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`${multiplier.toFixed(2)}x`, centre.x, y + height / 2);
+    ctx.fillText(label, centre.x, y + height / 2, width - 4);
   }
 
   // Ball.
@@ -327,7 +353,36 @@ export default function Plinko() {
       return undefined;
     }
 
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return undefined;
+    }
+
     let frame = 0;
+    const view: CanvasView = { dpr: 1, scale: 1 };
+
+    // Keep the backing store sharp (DPR-sized) and know how far CSS shrinks the board,
+    // so labels can be drawn at a readable on-screen size. Logical size stays 620×560,
+    // so the ball path and slot geometry are untouched.
+    const measure = () => {
+      const cssWidth = canvas.getBoundingClientRect().width || CANVAS_W;
+      const dpr = Math.min(MAX_DPR, window.devicePixelRatio || 1);
+      const pixelW = Math.round(CANVAS_W * dpr);
+      const pixelH = Math.round(CANVAS_H * dpr);
+
+      if (canvas.width !== pixelW || canvas.height !== pixelH) {
+        canvas.width = pixelW;
+        canvas.height = pixelH;
+      }
+
+      view.dpr = dpr;
+      view.scale = cssWidth / CANVAS_W;
+    };
+
+    measure();
+
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    observer?.observe(canvas);
 
     const render = (now: number) => {
       if (phaseRef.current === 'dropping' || phaseRef.current === 'landed') {
@@ -363,6 +418,7 @@ export default function Plinko() {
         ballRef.current,
         landedSlotRef.current,
         glowRef.current,
+        view,
       );
 
       frame = window.requestAnimationFrame(render);
@@ -370,7 +426,10 @@ export default function Plinko() {
 
     frame = window.requestAnimationFrame(render);
 
-    return () => window.cancelAnimationFrame(frame);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer?.disconnect();
+    };
   }, []);
 
   async function drop() {

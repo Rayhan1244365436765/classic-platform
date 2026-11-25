@@ -5,7 +5,7 @@ import type { PoolClient } from 'pg';
 import { AppError } from '../../common/utils/AppError.js';
 import { query, withTransaction } from '../../config/db.js';
 import { createTransaction, getBalance, lockUser } from '../wallet/wallet.service.js';
-import type { DepositInput, PaymentMethod } from './payment.schema.js';
+import type { DepositInput, PaymentMethod, WithdrawInput } from './payment.schema.js';
 
 /**
  * Manual deposit / withdrawal requests (the bridge until a real payment gateway
@@ -39,8 +39,13 @@ export type PaymentRequest = {
   trxId: string | null;
   /** Number the player paid from (deposits only). */
   senderNumber: string | null;
-  /** Meaningful for deposits only; withdrawals carry the column default. */
+  /**
+   * Deposits: the provider the player paid through.
+   * Withdrawals: the provider to pay out through (see `receiverNumber`).
+   */
   paymentMethod: PaymentMethod;
+  /** Number a withdrawal is paid out to (null for deposits and pre-026 withdrawals). */
+  receiverNumber: string | null;
   /** Joined for admin listings. */
   phone?: string;
 };
@@ -58,6 +63,7 @@ export type PaymentRequestRow = {
   trx_id: string | null;
   sender_number: string | null;
   payment_method: PaymentMethod;
+  receiver_number: string | null;
   phone?: string;
 };
 
@@ -79,6 +85,7 @@ export const PAYMENT_COLUMNS = `
   pr.trx_id,
   pr.sender_number,
   pr.payment_method,
+  pr.receiver_number,
   u.phone
 `;
 
@@ -126,12 +133,16 @@ export async function createDepositRequest(
  * Files a withdrawal request **and** debits the wallet immediately, atomically.
  * The debit is tagged with the request id (`reference_id`) so a refund can be
  * traced back to it.
+ *
+ * The chosen provider (`bkash` / `nagad`) and the receiving mobile number are
+ * stored on the request row — never on the append-only ledger — so the operator
+ * can see where to pay without any change to balance maths.
  */
 export async function createWithdrawRequest(
   userId: string,
-  amount: number,
+  input: WithdrawInput,
 ): Promise<PaymentRequest> {
-  const value = assertAmount(amount);
+  const value = assertAmount(input.amount);
   const requestId = crypto.randomUUID();
 
   return withTransaction(async (client) => {
@@ -156,14 +167,15 @@ export async function createWithdrawRequest(
 
     const result = await client.query<PaymentRequestRow>(
       `WITH inserted AS (
-         INSERT INTO payment_requests (id, user_id, amount, type)
-              VALUES ($1, $2, $3, 'withdraw')
+         INSERT INTO payment_requests
+                (id, user_id, amount, type, payment_method, receiver_number)
+              VALUES ($1, $2, $3, 'withdraw', $4, $5)
            RETURNING *
        )
        SELECT ${PAYMENT_COLUMNS}
          FROM inserted pr
          JOIN users u ON u.id = pr.user_id`,
-      [requestId, userId, moneyString(value)],
+      [requestId, userId, moneyString(value), input.paymentMethod, input.receiverNumber],
     );
 
     return mapPaymentRequest(requireRow(result.rows[0], 'PAYMENT_NOT_CREATED'));
@@ -207,6 +219,7 @@ export function mapPaymentRequest(row: PaymentRequestRow): PaymentRequest {
     trxId: row.trx_id,
     senderNumber: row.sender_number,
     paymentMethod: row.payment_method,
+    receiverNumber: row.receiver_number ?? null,
     phone: row.phone,
   };
 }

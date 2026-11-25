@@ -10,6 +10,7 @@ import {
 } from '../../../common/provably-fair/index.js';
 import { AppError } from '../../../common/utils/AppError.js';
 import { withTransaction } from '../../../config/db.js';
+import { getGameConfig } from '../../config/config.store.js';
 import { createTransaction, getBalance, lockUser } from '../../wallet/wallet.service.js';
 
 /**
@@ -57,7 +58,7 @@ export const WHEEL_ORDER: readonly number[] = [
 export type RouletteBetType = 'number' | 'red' | 'black' | 'even' | 'odd' | 'low' | 'high';
 export type PocketColor = 'green' | 'red' | 'black';
 
-/** Total return per unit staked, by bet type. */
+/** Built-in total return per unit staked, by bet type (the defaults). */
 export const PAYOUTS: Record<RouletteBetType, number> = {
   number: 36,
   red: 2,
@@ -67,6 +68,38 @@ export const PAYOUTS: Record<RouletteBetType, number> = {
   low: 2,
   high: 2,
 };
+
+/**
+ * Admin-tunable payouts (`classic_roulette` row in `game_configs`): one number for the
+ * straight bet and one shared by every even-money bet. The built-in table above is the
+ * fallback, so a missing row or a failed config load never changes the game.
+ */
+export type RoulettePayoutConfig = { straight: number; evenMoney: number };
+
+/** The built-in values in config shape — what the admin form starts from. */
+export const DEFAULT_PAYOUT_CONFIG: RoulettePayoutConfig = {
+  straight: PAYOUTS.number,
+  evenMoney: PAYOUTS.red,
+};
+
+/** Expands a config into a per-bet-type table. */
+export function payoutsFor(config: RoulettePayoutConfig): Record<RouletteBetType, number> {
+  return {
+    number: config.straight,
+    red: config.evenMoney,
+    black: config.evenMoney,
+    even: config.evenMoney,
+    odd: config.evenMoney,
+    low: config.evenMoney,
+    high: config.evenMoney,
+  };
+}
+
+/** Live payouts: the saved admin config, else the built-in table. */
+export function roulettePayouts(): Record<RouletteBetType, number> {
+  const saved = getGameConfig<RoulettePayoutConfig>('classic_roulette');
+  return saved ? payoutsFor(saved) : PAYOUTS;
+}
 
 /** Every bet type the table accepts, in board order. */
 export const BET_TYPES: readonly RouletteBetType[] = [
@@ -137,9 +170,12 @@ export function betWins(
   }
 }
 
-/** Theoretical RTP of a bet type — 36/37 for all of them. */
-export function rouletteRtp(betType: RouletteBetType): number {
-  return (winningPockets(betType) / POCKETS) * PAYOUTS[betType];
+/** Theoretical RTP of a bet type — 36/37 for all of them with the built-in payouts. */
+export function rouletteRtp(
+  betType: RouletteBetType,
+  payouts: Record<RouletteBetType, number> = roulettePayouts(),
+): number {
+  return (winningPockets(betType) / POCKETS) * payouts[betType];
 }
 
 /** Table layout, payouts and odds — everything the client renders. */
@@ -152,18 +188,20 @@ export function classicRouletteConfig(): {
   rtp: Record<RouletteBetType, number>;
   houseEdge: number;
 } {
+  const payouts = roulettePayouts();
   const rtp = Object.fromEntries(
-    BET_TYPES.map((betType) => [betType, rouletteRtp(betType)]),
+    BET_TYPES.map((betType) => [betType, rouletteRtp(betType, payouts)]),
   ) as Record<RouletteBetType, number>;
 
   return {
     pockets: POCKETS,
     redNumbers: RED_NUMBERS,
     wheelOrder: WHEEL_ORDER,
-    payouts: PAYOUTS,
+    payouts,
     betTypes: BET_TYPES,
     rtp,
-    houseEdge: 1 - rtp.red,
+    // Edge of the best-paying bet (the same figure the admin panel headlines).
+    houseEdge: 1 - Math.max(...Object.values(rtp)),
   };
 }
 
@@ -189,7 +227,7 @@ export async function playRoulette(
   const pocket = generateProvablyFairIndex(serverSeed, clientSeed, NONCE, POCKETS);
   const color = pocketColor(pocket);
   const won = betWins(type, value, pocket);
-  const multiplier = won ? PAYOUTS[type] : 0;
+  const multiplier = won ? roulettePayouts()[type] : 0;
   const payout = roundMoney(stake * multiplier);
   const roundId = crypto.randomUUID();
   const wheelIndex = WHEEL_ORDER.indexOf(pocket);

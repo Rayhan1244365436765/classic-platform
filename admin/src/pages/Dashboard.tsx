@@ -210,6 +210,7 @@ export default function Dashboard() {
                     <th>Type</th>
                     <th>Method</th>
                     <th>Sender Number</th>
+                    <th>Pay Out To</th>
                     <th>TrxID</th>
                     <th>Date</th>
                     <th>Actions</th>
@@ -223,8 +224,13 @@ export default function Dashboard() {
                       <td>
                         <span className={`badge badge--${payment.type}`}>{payment.type}</span>
                       </td>
-                      <td>{payment.type === 'deposit' ? payment.paymentMethod : '—'}</td>
+                      <td>
+                        {payment.type === 'deposit' || payment.receiverNumber
+                          ? payment.paymentMethod
+                          : '—'}
+                      </td>
                       <td className="mono">{payment.senderNumber ?? '—'}</td>
+                      <td className="mono">{payment.receiverNumber ?? '—'}</td>
                       <td className="mono">{payment.trxId ?? '—'}</td>
                       <td className="muted">{formatDate(payment.createdAt)}</td>
                       <td>
